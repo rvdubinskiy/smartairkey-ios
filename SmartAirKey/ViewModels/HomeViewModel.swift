@@ -64,13 +64,13 @@ final class HomeViewModel: ObservableObject {
 
     /// Called when the home screen appears. Idempotent.
     func onAppear() {
+        // Ask for Bluetooth and location up front. The location request is
+        // staged (When-In-Use first, then upgraded to "Always") so doors keep
+        // opening even after the app was closed or evicted from memory (req. 7),
+        // and background monitoring resumes automatically once "Always" is
+        // granted.
         bluetoothAuth.requestAuthorization()
-        // If seamless access is already on, make sure "Always" location is in
-        // effect and background monitoring is running so doors keep opening
-        // even after the app was closed or evicted from memory (req. 7).
-        if isSeamlessOn {
-            locationAuth.requestAlwaysAuthorization()
-        }
+        locationAuth.requestAlwaysAuthorization()
         access.start()
         Task { await refreshKeys() }
     }

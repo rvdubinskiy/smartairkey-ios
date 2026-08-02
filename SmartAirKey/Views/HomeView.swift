@@ -18,6 +18,10 @@ struct HomeView: View {
                         onChange: { viewModel.setSeamless($0) }
                     )
 
+                    if viewModel.isSeamlessOn {
+                        PermissionsExplanationCard()
+                    }
+
                     bluetoothBanner
 
                     locationBanner
@@ -44,15 +48,8 @@ struct HomeView: View {
         .overlay { successOverlay }
         .animation(.default, value: viewModel.doors)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.successDoorName)
-        .alert(item: $viewModel.activeError) { error in
-            Alert(
-                title: Text(error.title),
-                message: Text(error.message),
-                primaryButton: .default(Text(error.primaryAction.title)) {
-                    viewModel.perform(error.primaryAction)
-                },
-                secondaryButton: .cancel(Text(L10n.string("common.ok")))
-            )
+        .accessErrorAlert($viewModel.activeError) { action in
+            viewModel.perform(action)
         }
         .confirmationDialog(
             L10n.string("auth.sign_out.confirm.title"),

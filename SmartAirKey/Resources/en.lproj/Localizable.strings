@@ -32,6 +32,12 @@
 "seamless.state.turning_off" = "Turning off…";
 "seamless.accessibility.hint" = "Double tap to turn automatic door opening near you on or off.";
 
+// Permissions — why access is needed
+"permissions.explain.title" = "Why these permissions";
+"permissions.explain.bluetooth" = "Bluetooth finds the door when you're near it.";
+"permissions.explain.location" = "“Always” location access lets the system wake the app in the background, so doors open even when it's closed.";
+"permissions.explain.footer" = "Both permissions are needed for doors to open automatically. You can change them in Settings anytime.";
+
 // Doors
 "doors.section" = "My Doors";
 "doors.empty.title" = "No doors yet";

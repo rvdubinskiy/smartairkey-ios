@@ -32,6 +32,12 @@
 "seamless.state.turning_off" = "Выключаем…";
 "seamless.accessibility.hint" = "Дважды коснитесь, чтобы включить или выключить автоматическое открытие дверей рядом с вами.";
 
+// Permissions — why access is needed
+"permissions.explain.title" = "Зачем нужны разрешения";
+"permissions.explain.bluetooth" = "Bluetooth находит дверь, когда вы рядом с ней.";
+"permissions.explain.location" = "Доступ к геопозиции «Всегда» позволяет системе будить приложение в фоне, чтобы двери открывались, даже когда оно закрыто.";
+"permissions.explain.footer" = "Оба разрешения нужны для автоматического открытия дверей. Их можно изменить в настройках в любой момент.";
+
 // Doors
 "doors.section" = "Мои двери";
 "doors.empty.title" = "Пока нет доступных дверей";
