@@ -7,6 +7,7 @@ final class AccessErrorTests: XCTestCase {
 
     private let all: [AccessError] = [
         .bluetoothOff, .bluetoothDenied, .bluetoothUnsupported,
+        .locationDenied, .locationWhenInUseOnly,
         .openFailed(doorID: "x"), .noAccess(doorID: "x"),
         .keysRefreshFailed, .generic,
     ]
@@ -22,6 +23,8 @@ final class AccessErrorTests: XCTestCase {
     func testActionsMatchExpectations() {
         XCTAssertEqual(AccessError.bluetoothOff.primaryAction, .openSettings)
         XCTAssertEqual(AccessError.bluetoothDenied.primaryAction, .openSettings)
+        XCTAssertEqual(AccessError.locationDenied.primaryAction, .openSettings)
+        XCTAssertEqual(AccessError.locationWhenInUseOnly.primaryAction, .openSettings)
         XCTAssertEqual(AccessError.openFailed(doorID: "x").primaryAction, .retry)
         XCTAssertEqual(AccessError.keysRefreshFailed.primaryAction, .retry)
         XCTAssertEqual(AccessError.noAccess(doorID: "x").primaryAction, .contactSupport)

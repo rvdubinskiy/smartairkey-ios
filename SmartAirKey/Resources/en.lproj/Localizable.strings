@@ -59,6 +59,10 @@
 "error.bluetooth_denied.message" = "Allow the app to use Bluetooth in Settings to open doors.";
 "error.bluetooth_unsupported.title" = "Bluetooth unavailable";
 "error.bluetooth_unsupported.message" = "This device can't open doors near you.";
+"error.location_denied.title" = "Location access needed";
+"error.location_denied.message" = "Allow location access in Settings so doors open near you.";
+"error.location_always.title" = "Allow “Always” access";
+"error.location_always.message" = "To open doors even when the app is closed, choose “Always” for location in Settings.";
 "error.open_failed.title" = "Couldn't open";
 "error.open_failed.message" = "The door didn't respond. Move closer and try again.";
 "error.no_access.title" = "No access to this door";

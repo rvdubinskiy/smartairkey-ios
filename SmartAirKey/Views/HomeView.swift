@@ -20,6 +20,8 @@ struct HomeView: View {
 
                     bluetoothBanner
 
+                    locationBanner
+
                     doorsSection
                 }
                 .padding(20)
@@ -71,22 +73,36 @@ struct HomeView: View {
     @ViewBuilder
     private var bluetoothBanner: some View {
         if let error = viewModel.bluetooth.error {
-            HStack(spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(error.title).font(.subheadline.weight(.semibold))
-                    Text(error.message).font(.footnote).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 8)
-                Button(error.primaryAction.title) { viewModel.perform(error.primaryAction) }
-                    .font(.subheadline.weight(.semibold))
-                    .buttonStyle(.bordered)
-            }
-            .card()
-            .accessibilityElement(children: .combine)
+            banner(for: error)
         }
+    }
+
+    // Only surface the location banner once Bluetooth is fine, so the user sees
+    // one clear next step at a time (req. UI 4). Location "Always" is what keeps
+    // seamless access working with the app closed.
+    @ViewBuilder
+    private var locationBanner: some View {
+        if viewModel.bluetooth.error == nil, let error = viewModel.location.error {
+            banner(for: error)
+        }
+    }
+
+    private func banner(for error: AccessError) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(error.title).font(.subheadline.weight(.semibold))
+                Text(error.message).font(.footnote).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Button(error.primaryAction.title) { viewModel.perform(error.primaryAction) }
+                .font(.subheadline.weight(.semibold))
+                .buttonStyle(.bordered)
+        }
+        .card()
+        .accessibilityElement(children: .combine)
     }
 
     private var doorsSection: some View {

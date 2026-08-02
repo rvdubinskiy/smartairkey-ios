@@ -22,8 +22,12 @@ final class HomeViewModel: ObservableObject {
     // Bluetooth (req. 6)
     @Published private(set) var bluetooth: BluetoothAvailability = .unknown
 
+    // Location — needs "Always" so doors open with the app closed (req. 7)
+    @Published private(set) var location: LocationAvailability = .unknown
+
     private let access: SeamlessAccessService
     private let bluetoothAuth: BluetoothAuthorization
+    private let locationAuth: LocationAuthorization
     private let analytics: AnalyticsLogging
     private let keyProvider: KeyProviding
     private let config: AppConfig
@@ -33,11 +37,13 @@ final class HomeViewModel: ObservableObject {
 
     init(access: SeamlessAccessService,
          bluetoothAuth: BluetoothAuthorization,
+         locationAuth: LocationAuthorization,
          analytics: AnalyticsLogging,
          keyProvider: KeyProviding,
          config: AppConfig) {
         self.access = access
         self.bluetoothAuth = bluetoothAuth
+        self.locationAuth = locationAuth
         self.analytics = analytics
         self.keyProvider = keyProvider
         self.config = config
@@ -48,6 +54,7 @@ final class HomeViewModel: ObservableObject {
     convenience init(environment: AppEnvironment) {
         self.init(access: environment.access,
                   bluetoothAuth: environment.bluetooth,
+                  locationAuth: environment.location,
                   analytics: environment.analytics,
                   keyProvider: environment.keyProvider,
                   config: environment.config)
@@ -58,6 +65,12 @@ final class HomeViewModel: ObservableObject {
     /// Called when the home screen appears. Idempotent.
     func onAppear() {
         bluetoothAuth.requestAuthorization()
+        // If seamless access is already on, make sure "Always" location is in
+        // effect and background monitoring is running so doors keep opening
+        // even after the app was closed or evicted from memory (req. 7).
+        if isSeamlessOn {
+            locationAuth.requestAlwaysAuthorization()
+        }
         access.start()
         Task { await refreshKeys() }
     }
@@ -76,6 +89,11 @@ final class HomeViewModel: ObservableObject {
         bluetoothAuth.$availability
             .receive(on: DispatchQueue.main)
             .sink { [weak self] availability in self?.handleBluetooth(availability) }
+            .store(in: &cancellables)
+
+        locationAuth.$availability
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] availability in self?.handleLocation(availability) }
             .store(in: &cancellables)
     }
 
@@ -101,10 +119,14 @@ final class HomeViewModel: ObservableObject {
         isSeamlessBusy = true
         access.setSeamlessAccess(enabled: enabled)
 
-        // Enabling requires Bluetooth; surface a friendly error if it isn't ready.
+        // Enabling seamless access needs Bluetooth *and* "Always" location, so
+        // doors keep opening in the background even when the app is closed or
+        // evicted from memory. Prompt for both and surface a friendly error if
+        // either isn't ready (Bluetooth first, then location).
         if enabled {
             bluetoothAuth.requestAuthorization()
-            if let error = bluetooth.error {
+            locationAuth.requestAlwaysAuthorization()
+            if let error = bluetooth.error ?? location.error {
                 activeError = error
             }
         }
@@ -166,6 +188,16 @@ final class HomeViewModel: ObservableObject {
         bluetooth = availability
         // Only nag about Bluetooth when the user is relying on seamless access.
         if isSeamlessOn, let error = availability.error {
+            activeError = error
+        }
+    }
+
+    private func handleLocation(_ availability: LocationAvailability) {
+        location = availability
+        // Only nag about location when the user is relying on seamless access.
+        // Bluetooth issues take priority in the alert; location fills in when
+        // Bluetooth is fine but "Always" access is missing.
+        if isSeamlessOn, bluetooth.error == nil, let error = availability.error {
             activeError = error
         }
     }

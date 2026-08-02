@@ -81,6 +81,13 @@ never deleted by the toggle (req. 5).
   `AirKeySmartDevice.removeAllKeys()`.
 - The app boots the SDK in `AppDelegate.didFinishLaunching` so iOS can relaunch
   it for background BLE events.
+- **Background wake-up:** `Location/LocationAuthorization` requests *Always*
+  location access and starts significant-location-change monitoring. This lets
+  iOS relaunch the app in the background — even after it has been closed or
+  evicted from memory — so seamless access keeps opening doors nearby. Enabling
+  the toggle prompts for both Bluetooth and *Always* location; if only "While
+  Using the App" is granted, the user is nudged (banner + alert) to switch to
+  "Always" in Settings.
 
 ## Concurrency
 
