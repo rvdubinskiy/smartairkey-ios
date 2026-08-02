@@ -8,7 +8,6 @@ struct SeamlessToggleCard: View {
     let statusText: String
     let subtitle: String
     let isBusy: Bool
-    let onChange: (Bool) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -39,7 +38,6 @@ struct SeamlessToggleCard: View {
 
                 Toggle("", isOn: $isOn)
                     .labelsHidden()
-                    .onChange(of: isOn) { newValue in onChange(newValue) }
                     .accessibilityLabel(L10n.string("seamless.title"))
                     .accessibilityValue(statusText)
                     .accessibilityHint(L10n.string("seamless.accessibility.hint"))
@@ -61,13 +59,11 @@ struct SeamlessToggleCard: View {
         SeamlessToggleCard(isOn: .constant(true),
                            statusText: "Включено",
                            subtitle: "Двери открываются сами, когда вы подходите.",
-                           isBusy: false,
-                           onChange: { _ in })
+                           isBusy: false)
         SeamlessToggleCard(isOn: .constant(false),
                            statusText: "Выключено",
                            subtitle: "Открывайте двери вручную кнопкой «Открыть».",
-                           isBusy: false,
-                           onChange: { _ in })
+                           isBusy: false)
     }
     .padding()
     .background(Color(.systemGroupedBackground))

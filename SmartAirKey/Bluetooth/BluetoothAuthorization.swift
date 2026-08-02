@@ -26,6 +26,15 @@ enum BluetoothAvailability: Equatable {
     }
 }
 
+/// Abstraction over Bluetooth authorization so view models can read the current
+/// state, observe changes, and trigger the permission prompt — and so tests can
+/// substitute a fake without CoreBluetooth.
+protocol BluetoothAuthorizing: AnyObject {
+    var availability: BluetoothAvailability { get }
+    var availabilityPublisher: AnyPublisher<BluetoothAvailability, Never> { get }
+    func requestAuthorization()
+}
+
 /// Wraps `CBCentralManager` to (a) prompt for Bluetooth permission and (b)
 /// publish a plain-language availability state (req. 6).
 final class BluetoothAuthorization: NSObject, ObservableObject {
@@ -48,6 +57,12 @@ final class BluetoothAuthorization: NSObject, ObservableObject {
             queue: nil,
             options: [CBCentralManagerOptionShowPowerAlertKey: false]
         )
+    }
+}
+
+extension BluetoothAuthorization: BluetoothAuthorizing {
+    var availabilityPublisher: AnyPublisher<BluetoothAvailability, Never> {
+        $availability.eraseToAnyPublisher()
     }
 }
 

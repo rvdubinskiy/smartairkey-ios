@@ -11,12 +11,18 @@ struct HomeView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     SeamlessToggleCard(
-                        isOn: $viewModel.isSeamlessOn,
+                        isOn: Binding(
+                            get: { viewModel.isSeamlessOn },
+                            set: { viewModel.setSeamless($0) }
+                        ),
                         statusText: viewModel.seamlessStatusText,
                         subtitle: viewModel.seamlessSubtitle,
-                        isBusy: viewModel.isSeamlessBusy,
-                        onChange: { viewModel.setSeamless($0) }
+                        isBusy: viewModel.isSeamlessBusy
                     )
+
+                    if viewModel.isSeamlessOn || viewModel.pendingEnable {
+                        PermissionsExplanationCard()
+                    }
 
                     bluetoothBanner
 
@@ -44,15 +50,8 @@ struct HomeView: View {
         .overlay { successOverlay }
         .animation(.default, value: viewModel.doors)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.successDoorName)
-        .alert(item: $viewModel.activeError) { error in
-            Alert(
-                title: Text(error.title),
-                message: Text(error.message),
-                primaryButton: .default(Text(error.primaryAction.title)) {
-                    viewModel.perform(error.primaryAction)
-                },
-                secondaryButton: .cancel(Text(L10n.string("common.ok")))
-            )
+        .accessErrorAlert($viewModel.activeError) { action in
+            viewModel.perform(action)
         }
         .confirmationDialog(
             L10n.string("auth.sign_out.confirm.title"),
