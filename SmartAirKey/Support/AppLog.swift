@@ -13,5 +13,6 @@ enum AppLog {
     static let backend = Logger(subsystem: subsystem, category: "backend")
     static let auth = Logger(subsystem: subsystem, category: "auth")
     static let bluetooth = Logger(subsystem: subsystem, category: "bluetooth")
+    static let location = Logger(subsystem: subsystem, category: "location")
     static let ui = Logger(subsystem: subsystem, category: "ui")
 }

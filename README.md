@@ -21,7 +21,7 @@ door's status in plain language, and never encounter a single technical term
 | **Doors** | A live list of the resident's doors, each with a plain-language status and an **Open** button for manual opening. |
 | **Keys** | Digital keys are fetched from the backend and handed to the SDK. Expired/revoked keys are filtered out and stop being used automatically. |
 | **Bluetooth** | Requests Bluetooth permission and shows a friendly, actionable message if it's off or denied. |
-| **Background** | Works with the app minimised and the screen locked, within iOS limits (background BLE + Keychain unlocked after first unlock). |
+| **Background** | Works with the app minimised, the screen locked, and even after it's been closed or evicted, within iOS limits (background BLE + *Always* location wake-ups + Keychain unlocked after first unlock). |
 | **Sign-out** | Wipes all keys and tokens from the device. |
 | **Feedback** | Success animation + haptics on open; every error has exactly one clear action. |
 | **Analytics** | Records feature enable/disable, successful opens, and errors. |

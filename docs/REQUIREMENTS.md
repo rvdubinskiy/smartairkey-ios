@@ -12,7 +12,7 @@ Every MVP and UI requirement, mapped to where it's implemented.
 | 4 | On → `autoOpen = true`; off → `false` | `AirKeyAccessService.applySeamlessSetting(enabled:)` → `updateLock(keyId:settings:)` |
 | 5 | Turning it off does **not** delete the key | `applySeamlessSetting` only edits `Settings.autoOpen`; keys are never removed on toggle |
 | 6 | Requests Bluetooth permission; clear error if off/denied | `Bluetooth/BluetoothAuthorization.swift`, surfaced via `HomeViewModel.handleBluetooth`, `AccessError.bluetooth*` |
-| 7 | Works minimised / screen locked, within iOS limits | `Info.plist` `UIBackgroundModes`; `AppDelegate` calls `AirKeySmartDevice.shared.launch`; Keychain `AfterFirstUnlock` |
+| 7 | Works minimised / screen locked / app closed, within iOS limits | `Info.plist` `UIBackgroundModes` + `NSLocationAlwaysAndWhenInUseUsageDescription`; `AppDelegate` calls `AirKeySmartDevice.shared.launch`; **`Location/LocationAuthorization`** requests *Always* location and starts significant-change monitoring so iOS revives the app after it's evicted; Keychain `AfterFirstUnlock`. Missing "Always" access is surfaced via `HomeViewModel.handleLocation`, `AccessError.location*` |
 | 8 | User sees the list of available doors and their status | `Views/HomeView.doorsSection`, `DoorRowView`, `DoorStatusBadge` |
 | 9 | User can manually open an available door | `DoorRowView` "Open" button → `HomeViewModel.open(_:)` → `AirKeyAccessService.open(doorID:)` → `openLock(for:key:)` |
 | 10 | Expired/revoked keys stop being used automatically | `CryptoKey.status == .active` filter in `loadKeys` (the SDK computes status from the key's validity period); `removeAllKeys()` before re-adding drops revoked keys |
@@ -33,8 +33,13 @@ Every MVP and UI requirement, mapped to where it's implemented.
 
 ## Notes & limitations
 
-- **Background execution** relies on iOS BLE background modes and the SDK's own
-  connection lifecycle; iOS may still suspend the app under memory pressure.
+- **Background execution** relies on iOS BLE background modes, *Always* location
+  authorization, and the SDK's own connection lifecycle. Significant-location-change
+  monitoring lets iOS relaunch the app in the background to open doors even after
+  it has been closed or evicted from memory; iOS may still suspend the app under
+  memory pressure, and background wake-ups are throttled by the system. If the
+  user grants only "While Using the App", the app shows a plain-language banner
+  asking to switch location access to "Always" in Settings.
 - **Live backend**: the auth route and key endpoint are deployment-specific
   (`SmartAirKeyAuthService.path`, `SmartAirKeyBackendClient.path`). Demo mode
   (bundled keys) is the default so the app is runnable out of the box.

@@ -59,6 +59,10 @@
 "error.bluetooth_denied.message" = "Разрешите приложению использовать Bluetooth в настройках, чтобы открывать двери.";
 "error.bluetooth_unsupported.title" = "Bluetooth недоступен";
 "error.bluetooth_unsupported.message" = "На этом устройстве не получится открывать двери рядом.";
+"error.location_denied.title" = "Нужен доступ к геопозиции";
+"error.location_denied.message" = "Разрешите доступ к геопозиции в настройках, чтобы двери открывались рядом с вами.";
+"error.location_always.title" = "Разрешите доступ «Всегда»";
+"error.location_always.message" = "Чтобы двери открывались, даже когда приложение закрыто, выберите для геопозиции вариант «Всегда» в настройках.";
 "error.open_failed.title" = "Не удалось открыть";
 "error.open_failed.message" = "Дверь не ответила. Подойдите ближе и попробуйте ещё раз.";
 "error.no_access.title" = "Нет доступа к двери";

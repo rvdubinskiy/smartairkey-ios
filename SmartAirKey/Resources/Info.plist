@@ -34,8 +34,13 @@
 	<string>Приложению нужен Bluetooth, чтобы открывать двери, когда вы рядом.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Приложению нужен Bluetooth, чтобы открывать двери, когда вы рядом.</string>
+	<!-- Location permission. Seamless access must keep opening doors even when
+	     the app is closed or evicted from memory, so we ask for "Always" access
+	     (background location keeps the app alive to reach doors nearby). -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Доступ к геопозиции помогает надёжно открывать двери рядом с вами.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Разрешите доступ к геопозиции «Всегда», чтобы двери открывались рядом с вами, даже когда приложение закрыто.</string>
 
 	<!-- Background operation so seamless access keeps working with the app
 	     minimised or the screen locked, within iOS limits (req. 7). -->

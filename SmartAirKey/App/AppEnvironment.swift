@@ -20,6 +20,7 @@ final class AppEnvironment: ObservableObject {
     let config: AppConfig
     let session: SessionStore
     let bluetooth: BluetoothAuthorization
+    let location: LocationAuthorization
     let analytics: AnalyticsLogging
     let preferences: SeamlessPreferenceStoring
     let access: SeamlessAccessService
@@ -29,6 +30,7 @@ final class AppEnvironment: ObservableObject {
     init(config: AppConfig = .demo,
          session: SessionStore = SessionStore(),
          bluetooth: BluetoothAuthorization = BluetoothAuthorization(),
+         location: LocationAuthorization = LocationAuthorization(),
          analytics: AnalyticsLogging = OSLogAnalytics(),
          preferences: SeamlessPreferenceStoring = SeamlessPreferenceStore(),
          access: SeamlessAccessService? = nil,
@@ -38,6 +40,7 @@ final class AppEnvironment: ObservableObject {
         self.config = config
         self.session = session
         self.bluetooth = bluetooth
+        self.location = location
         self.analytics = analytics
         self.preferences = preferences
         self.access = access ?? AppEnvironment.makeAccessService(analytics: analytics,
