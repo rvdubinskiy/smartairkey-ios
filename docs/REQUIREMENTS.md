@@ -8,7 +8,7 @@ Every MVP and UI requirement, mapped to where it's implemented.
 |---|-------------|-------|
 | 1 | Authorized resident receives digital keys from the backend | `Auth/Authenticating.swift`, `Backend/KeyProviding.swift` (`SmartAirKeyBackendClient`), `ViewModels/HomeViewModel.refreshKeys()` |
 | 2 | App passes valid keys to the SmartAirKey iOS SDK | `Access/AirKeyAccessService.loadKeys(serverJSON:)` → `AirKeySmartDevice.shared.add(compositeKeys:crypto:sent:)` |
-| 3 | User can turn seamless access on/off with a switch | `Views/SeamlessToggleCard.swift`, `HomeViewModel.setSeamless(_:)` |
+| 3 | User can turn seamless access on/off with a switch | `Views/SeamlessToggleCard.swift`, `HomeViewModel.setSeamless(_:)`. **Enabling is gated**: the switch won't turn on until Bluetooth *and* "Always" location are both granted (`allAccessGranted`); it finishes enabling automatically once access is granted (`pendingEnable`). Turning off is always allowed |
 | 4 | On → `autoOpen = true`; off → `false` | `AirKeyAccessService.applySeamlessSetting(enabled:)` → `updateLock(keyId:settings:)` |
 | 5 | Turning it off does **not** delete the key | `applySeamlessSetting` only edits `Settings.autoOpen`; keys are never removed on toggle |
 | 6 | Requests Bluetooth permission; clear error if off/denied | `Bluetooth/BluetoothAuthorization.swift`, surfaced via `HomeViewModel.handleBluetooth`, `AccessError.bluetooth*` |

@@ -30,6 +30,8 @@
 "seamless.state.off" = "Выключено";
 "seamless.state.turning_on" = "Включаем…";
 "seamless.state.turning_off" = "Выключаем…";
+"seamless.state.needs_access" = "Нужен доступ";
+"seamless.subtitle.needs_access" = "Чтобы включить, выдайте доступ к Bluetooth и геопозиции «Всегда».";
 "seamless.accessibility.hint" = "Дважды коснитесь, чтобы включить или выключить автоматическое открытие дверей рядом с вами.";
 
 // Permissions — why access is needed

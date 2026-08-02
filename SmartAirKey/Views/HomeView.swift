@@ -11,14 +11,16 @@ struct HomeView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     SeamlessToggleCard(
-                        isOn: $viewModel.isSeamlessOn,
+                        isOn: Binding(
+                            get: { viewModel.isSeamlessOn },
+                            set: { viewModel.setSeamless($0) }
+                        ),
                         statusText: viewModel.seamlessStatusText,
                         subtitle: viewModel.seamlessSubtitle,
-                        isBusy: viewModel.isSeamlessBusy,
-                        onChange: { viewModel.setSeamless($0) }
+                        isBusy: viewModel.isSeamlessBusy
                     )
 
-                    if viewModel.isSeamlessOn {
+                    if viewModel.isSeamlessOn || viewModel.pendingEnable {
                         PermissionsExplanationCard()
                     }
 

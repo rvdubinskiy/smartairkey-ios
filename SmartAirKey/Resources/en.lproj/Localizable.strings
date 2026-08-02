@@ -30,6 +30,8 @@
 "seamless.state.off" = "Off";
 "seamless.state.turning_on" = "Turning on…";
 "seamless.state.turning_off" = "Turning off…";
+"seamless.state.needs_access" = "Access needed";
+"seamless.subtitle.needs_access" = "To turn this on, grant Bluetooth and “Always” location access.";
 "seamless.accessibility.hint" = "Double tap to turn automatic door opening near you on or off.";
 
 // Permissions — why access is needed

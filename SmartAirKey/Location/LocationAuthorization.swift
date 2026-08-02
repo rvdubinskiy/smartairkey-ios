@@ -28,6 +28,15 @@ enum LocationAvailability: Equatable {
     }
 }
 
+/// Abstraction over location authorization so view models can read the current
+/// state, observe changes, and trigger the "Always" prompt — and so tests can
+/// substitute a fake without CoreLocation.
+protocol LocationAuthorizing: AnyObject {
+    var availability: LocationAvailability { get }
+    var availabilityPublisher: AnyPublisher<LocationAvailability, Never> { get }
+    func requestAlwaysAuthorization()
+}
+
 /// Wraps `CLLocationManager` to (a) request **Always** location authorization —
 /// staged the way iOS expects — and (b) publish a plain-language availability
 /// state. It also starts significant-location-change monitoring so the system
@@ -104,6 +113,12 @@ final class LocationAuthorization: NSObject, ObservableObject {
             self?.availability = newValue
         }
         AppLog.location.info("Location availability=\(String(describing: newValue), privacy: .public)")
+    }
+}
+
+extension LocationAuthorization: LocationAuthorizing {
+    var availabilityPublisher: AnyPublisher<LocationAvailability, Never> {
+        $availability.eraseToAnyPublisher()
     }
 }
 
