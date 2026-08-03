@@ -4,7 +4,9 @@ import SwiftUI
 struct SmartAirKeyApp: App {
 
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var environment = AppEnvironment()
+    // Uses the live backend + preset SAS token when provided via the scheme's
+    // environment variables (see AppConfig.resolved); otherwise demo mode.
+    @StateObject private var environment = AppEnvironment(config: .resolved)
 
     var body: some Scene {
         WindowGroup {
