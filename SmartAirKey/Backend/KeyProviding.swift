@@ -27,8 +27,9 @@ struct SmartAirKeyBackendClient: KeyProviding {
     let session: URLSession
     let tokenProvider: () -> String?
     /// Endpoint returning the resident's keys ("route": keys + cryptoKeys).
+    /// Per SDK docs the mobile profile action is `GetUserProfileV2`.
     var path: String = "/api/mobile"
-    var query: [URLQueryItem] = [URLQueryItem(name: "Action", value: "GetUserProfile")]
+    var query: [URLQueryItem] = [URLQueryItem(name: "Action", value: "GetUserProfileV2")]
 
     init(baseURL: URL,
          session: URLSession = .shared,
@@ -92,11 +93,14 @@ struct SmartAirKeyBackendClient: KeyProviding {
         return "\(token.prefix(4))…\(token.suffix(4)) (len \(token.count))"
     }
 
+    /// UTC timestamp in the format the SmartAirKey mobile API expects
+    /// (ISO-8601 with milliseconds and a literal `Z`), e.g. per SDK docs
+    /// `2025-01-23T07:28:57.628Z`.
     private static func timestamp() -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
         return formatter.string(from: Date())
     }
 }

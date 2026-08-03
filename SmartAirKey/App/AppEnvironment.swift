@@ -8,11 +8,15 @@ struct AppConfig {
     /// Support contact surfaced by the "Contact support" error action.
     var supportURL: URL? = URL(string: "mailto:support@smartairkey.com")
 
-    /// DEV/TEST ONLY: a preset SAS token used to skip the sign-in screen and
-    /// exercise the real backend on device. Leave `nil` in committed code —
-    /// supply it via the scheme's `SAK_SAS_TOKEN` environment variable (safe,
-    /// not stored in git), or paste it locally just for a throwaway test build.
-    /// It is seeded into the Keychain on launch and cleared by Sign Out.
+    /// DEV/TEST ONLY: a preset **subscriber** SAS token used to skip the sign-in
+    /// screen and exercise the real backend on device. This must be the per-user
+    /// `apiKeyId:token` pair (obtained by exchanging the company SAS-TOKEN via
+    /// `GET /api/service/company/GetUserToken` — see scripts/get_user_token.sh),
+    /// NOT the company SAS-TOKEN itself. It is sent verbatim as
+    /// `Authorization: SAS-TOKEN apiKeyId:token` to `/api/mobile`.
+    /// Leave `nil` in committed code — supply it via the scheme's
+    /// `SAK_SAS_TOKEN` environment variable (safe, not stored in git). It is
+    /// seeded into the Keychain on launch and cleared by Sign Out.
     var developerAccessToken: String?
 
     static let demo = AppConfig(backendBaseURL: nil)
