@@ -39,7 +39,10 @@ struct SmartAirKeyBackendClient: KeyProviding {
     }
 
     func fetchDigitalKeys() async throws -> Data {
-        guard let token = tokenProvider() else { throw BackendError.notAuthenticated }
+        guard let token = tokenProvider() else {
+            AppLog.backend.error("Key fetch aborted: no SAS token in session")
+            throw BackendError.notAuthenticated
+        }
 
         var components = URLComponents(url: baseURL.appendingPathComponent(path),
                                        resolvingAgainstBaseURL: false)
@@ -53,21 +56,40 @@ struct SmartAirKeyBackendClient: KeyProviding {
         request.setValue("*/*", forHTTPHeaderField: "Accept")
         request.setValue(Self.timestamp(), forHTTPHeaderField: "Timestamp")
 
+        // Diagnostics: URL + a masked token so a wrong/empty token or endpoint
+        // is obvious in Console without leaking the secret.
+        AppLog.backend.info("Fetching keys url=\(url.absoluteString, privacy: .public) token=\(Self.mask(token), privacy: .public)")
+
         do {
             let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else {
+                AppLog.backend.error("Keys fetch: non-HTTP response")
                 throw BackendError.badResponse(status: -1)
             }
+            AppLog.backend.info("Keys response status=\(http.statusCode, privacy: .public) bytes=\(data.count, privacy: .public)")
             guard (200..<300).contains(http.statusCode) else {
+                let body = String(data: data.prefix(600), encoding: .utf8) ?? "<binary>"
+                AppLog.backend.error("Keys request failed status=\(http.statusCode, privacy: .public) body=\(body, privacy: .public)")
                 throw BackendError.badResponse(status: http.statusCode)
             }
-            guard !data.isEmpty else { throw BackendError.emptyData }
+            guard !data.isEmpty else {
+                AppLog.backend.error("Keys request returned empty body")
+                throw BackendError.emptyData
+            }
             return data
         } catch let error as BackendError {
             throw error
         } catch {
+            AppLog.backend.error("Keys transport error: \(String(describing: error), privacy: .public)")
             throw BackendError.transport(error)
         }
+    }
+
+    /// Masks a token for logs: first/last few chars + length, never the whole
+    /// secret. Lets you confirm the right token is present without exposing it.
+    private static func mask(_ token: String) -> String {
+        guard token.count > 8 else { return "set(len \(token.count))" }
+        return "\(token.prefix(4))…\(token.suffix(4)) (len \(token.count))"
     }
 
     private static func timestamp() -> String {

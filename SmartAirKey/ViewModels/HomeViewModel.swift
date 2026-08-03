@@ -109,7 +109,8 @@ final class HomeViewModel: ObservableObject {
         defer { isLoadingKeys = false }
         do {
             let data = try await keyProvider.fetchDigitalKeys()
-            try access.loadKeys(serverJSON: data)
+            let summary = try access.loadKeys(serverJSON: data)
+            AppLog.backend.info("Keys loaded active=\(summary.active, privacy: .public) dropped=\(summary.dropped, privacy: .public)")
         } catch {
             AppLog.backend.error("Key refresh failed: \(String(describing: error), privacy: .public)")
             analytics.log(.error(domain: "keys", reason: "\(error)"))
