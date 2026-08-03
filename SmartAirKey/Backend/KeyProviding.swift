@@ -62,7 +62,7 @@ struct SmartAirKeyBackendClient: KeyProviding, KeyRequestApproving {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("SAS-TOKEN \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(Self.authorizationHeader(for: token), forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("*/*", forHTTPHeaderField: "Accept")
         request.setValue(Self.timestamp(), forHTTPHeaderField: "Timestamp")
@@ -94,6 +94,20 @@ struct SmartAirKeyBackendClient: KeyProviding, KeyRequestApproving {
             AppLog.backend.error("Keys transport error: \(String(describing: error), privacy: .public)")
             throw BackendError.transport(error)
         }
+    }
+
+    /// Builds the `Authorization` value. The API expects
+    /// `<scheme> <apiKeyId>:<signature>`; for the SAS-TOKEN scheme the token is
+    /// passed verbatim. If the supplied token already carries a scheme prefix
+    /// (a common paste mistake), it's used as-is instead of being doubled.
+    static func authorizationHeader(for rawToken: String) -> String {
+        let token = rawToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        let schemes = ["SAS-TOKEN", "SAS-HMAC-SHA256", "SAS-HMAC-SHA1", "BEARER", "BASIC"]
+        if let first = token.split(separator: " ", maxSplits: 1).first,
+           schemes.contains(first.uppercased()) {
+            return token
+        }
+        return "SAS-TOKEN \(token)"
     }
 
     /// Masks a token for logs: first/last few chars + length, never the whole
@@ -131,7 +145,7 @@ struct SmartAirKeyBackendClient: KeyProviding, KeyRequestApproving {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("SAS-TOKEN \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(Self.authorizationHeader(for: token), forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(Self.timestamp(), forHTTPHeaderField: "Timestamp")
         request.httpBody = try JSONSerialization.data(
