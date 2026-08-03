@@ -8,6 +8,16 @@ protocol KeyProviding {
     func fetchDigitalKeys() async throws -> Data
 }
 
+/// Accepts keys the access-manager sent from the control panel. Per the SDK
+/// docs a granted key first lands in `incomingKeysRequests` of the profile and
+/// only appears in `keys`/`cryptoKeys` once approved — so integration testing
+/// needs this step, otherwise no doors show up.
+protocol KeyRequestApproving {
+    /// Approves every pending incoming key request found in a GetUserProfileV2
+    /// payload. Returns how many were approved.
+    func approvePendingKeyRequests(in profileJSON: Data) async throws -> Int
+}
+
 enum BackendError: LocalizedError {
     case notAuthenticated
     case badResponse(status: Int)
@@ -21,7 +31,7 @@ enum BackendError: LocalizedError {
 
 /// Network implementation. Uses the resident's session token to authorize the
 /// request, per the SmartAirKey mobile API (SAS-TOKEN + Timestamp headers).
-struct SmartAirKeyBackendClient: KeyProviding {
+struct SmartAirKeyBackendClient: KeyProviding, KeyRequestApproving {
 
     let baseURL: URL
     let session: URLSession
@@ -91,6 +101,51 @@ struct SmartAirKeyBackendClient: KeyProviding {
     private static func mask(_ token: String) -> String {
         guard token.count > 8 else { return "set(len \(token.count))" }
         return "\(token.prefix(4))…\(token.suffix(4)) (len \(token.count))"
+    }
+
+    // MARK: Key request approval (KeyRequestApproving)
+
+    func approvePendingKeyRequests(in profileJSON: Data) async throws -> Int {
+        let ids = Self.pendingRequestIds(in: profileJSON)
+        guard !ids.isEmpty else { return 0 }
+        AppLog.backend.info("Approving \(ids.count, privacy: .public) pending key request(s)")
+        for id in ids {
+            try await approveKeyRequest(id: id)
+        }
+        return ids.count
+    }
+
+    /// Extracts the ids of pending incoming key requests from a GetUserProfileV2
+    /// payload. Tolerant: any shape mismatch yields an empty list.
+    private static func pendingRequestIds(in data: Data) -> [String] {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let requests = root["incomingKeysRequests"] as? [[String: Any]] else {
+            return []
+        }
+        return requests.compactMap { $0["id"] as? String }
+    }
+
+    private func approveKeyRequest(id: String) async throws {
+        guard let token = tokenProvider() else { throw BackendError.notAuthenticated }
+        let url = baseURL.appendingPathComponent("/api/mobile/KeyRequestApprove")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("SAS-TOKEN \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(Self.timestamp(), forHTTPHeaderField: "Timestamp")
+        request.httpBody = try JSONSerialization.data(
+            withJSONObject: ["Action": "KeyRequestApprove", "RequestId": id]
+        )
+
+        let (data, response) = try await session.data(for: request)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+        guard (200..<300).contains(code) else {
+            let body = String(data: data.prefix(400), encoding: .utf8) ?? "<binary>"
+            AppLog.backend.error("KeyRequestApprove failed id=\(id, privacy: .public) status=\(code, privacy: .public) body=\(body, privacy: .public)")
+            throw BackendError.badResponse(status: code)
+        }
+        AppLog.backend.info("Approved key request id=\(id, privacy: .public)")
     }
 
     /// UTC timestamp in the format the SmartAirKey mobile API expects

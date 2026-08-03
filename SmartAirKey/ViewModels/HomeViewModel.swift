@@ -108,7 +108,20 @@ final class HomeViewModel: ObservableObject {
         isLoadingKeys = true
         defer { isLoadingKeys = false }
         do {
-            let data = try await keyProvider.fetchDigitalKeys()
+            var data = try await keyProvider.fetchDigitalKeys()
+
+            // Accept any keys the access-manager granted (pending
+            // `incomingKeysRequests`) so they become usable, then refetch to
+            // pick up the now-approved keys/cryptoKeys.
+            if config.autoApproveIncomingKeys,
+               let approver = keyProvider as? KeyRequestApproving {
+                let approved = try await approver.approvePendingKeyRequests(in: data)
+                if approved > 0 {
+                    AppLog.backend.info("Auto-approved \(approved, privacy: .public) key request(s); refetching")
+                    data = try await keyProvider.fetchDigitalKeys()
+                }
+            }
+
             let summary = try access.loadKeys(serverJSON: data)
             AppLog.backend.info("Keys loaded active=\(summary.active, privacy: .public) dropped=\(summary.dropped, privacy: .public)")
         } catch {

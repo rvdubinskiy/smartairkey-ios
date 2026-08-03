@@ -19,6 +19,12 @@ struct AppConfig {
     /// seeded into the Keychain on launch and cleared by Sign Out.
     var developerAccessToken: String?
 
+    /// When true, keys the access-manager grants (which arrive as pending
+    /// `incomingKeysRequests`) are auto-accepted on refresh so they become
+    /// usable without a manual approval step. Enabled for live/test runs so
+    /// integration can be verified end to end; off in demo mode.
+    var autoApproveIncomingKeys: Bool = false
+
     static let demo = AppConfig(backendBaseURL: nil)
 
     /// Resolves the runtime config from the launch environment so secrets stay
@@ -36,7 +42,8 @@ struct AppConfig {
             return .demo
         }
         return AppConfig(backendBaseURL: url,
-                         developerAccessToken: env["SAK_SAS_TOKEN"])
+                         developerAccessToken: env["SAK_SAS_TOKEN"],
+                         autoApproveIncomingKeys: true)
     }
 }
 
