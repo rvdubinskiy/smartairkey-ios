@@ -18,6 +18,7 @@
 "auth.sign_in" = "Войти";
 "auth.signing_in" = "Входим…";
 "auth.error.invalid" = "Не удалось войти. Проверьте номер телефона.";
+"auth.error.not_found" = "Пользователь с таким номером не найден.";
 "auth.error.not_configured" = "Вход недоступен: приложение не настроено. Обратитесь в поддержку.";
 "auth.sign_out" = "Выйти из аккаунта";
 "auth.sign_out.confirm.title" = "Выйти из аккаунта?";

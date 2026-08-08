@@ -11,12 +11,14 @@ protocol Authenticating {
 
 enum AuthError: LocalizedError {
     case invalidCredentials
+    case userNotFound
     case notConfigured
     case network(underlying: Error)
 
     var errorDescription: String? {
         switch self {
         case .invalidCredentials: return L10n.string("auth.error.invalid")
+        case .userNotFound: return L10n.string("auth.error.not_found")
         case .notConfigured: return L10n.string("auth.error.not_configured")
         case .network: return L10n.string("error.generic.message")
         }
@@ -76,18 +78,36 @@ struct SmartAirKeyAuthService: Authenticating {
                 throw AuthError.network(underlying: URLError(.badServerResponse))
             }
             AppLog.auth.info("GetUserToken status=\(http.statusCode, privacy: .public)")
-            guard http.statusCode == 200 else {
+
+            // Only authorize when the API actually returned a real user token.
+            // An unknown phone can come back as a non-200, or as 200 with an
+            // error body / empty apiKeyId+token — in every such case we must
+            // NOT sign the user in.
+            guard let token = Self.userToken(status: http.statusCode, data: data) else {
                 let body = String(data: data.prefix(400), encoding: .utf8) ?? "<binary>"
-                AppLog.auth.error("GetUserToken failed status=\(http.statusCode, privacy: .public) body=\(body, privacy: .public)")
-                throw AuthError.invalidCredentials
+                AppLog.auth.error("GetUserToken did not return a valid user token status=\(http.statusCode, privacy: .public) body=\(body, privacy: .public)")
+                throw AuthError.userNotFound
             }
-            let payload = try JSONDecoder().decode(UserTokenResponse.self, from: data)
-            return "\(payload.apiKeyId):\(payload.token)"
+            return token
         } catch let error as AuthError {
             throw error
         } catch {
             throw AuthError.network(underlying: error)
         }
+    }
+
+    /// Assembles `apiKeyId:token` only when the response is a 200 carrying both
+    /// non-empty fields; otherwise nil (unknown user / error response).
+    /// Pure and static so the not-found logic is unit-testable without network.
+    static func userToken(status: Int, data: Data) -> String? {
+        guard status == 200,
+              let payload = try? JSONDecoder().decode(UserTokenResponse.self, from: data),
+              let apiKeyId = payload.apiKeyId?.trimmingCharacters(in: .whitespacesAndNewlines),
+              let token = payload.token?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !apiKeyId.isEmpty, !token.isEmpty else {
+            return nil
+        }
+        return "\(apiKeyId):\(token)"
     }
 
     private static func timestamp() -> String {
@@ -98,8 +118,10 @@ struct SmartAirKeyAuthService: Authenticating {
         return formatter.string(from: Date())
     }
 
+    // Optional so an error/empty body decodes to nils (→ userNotFound) instead
+    // of throwing a decoding error.
     private struct UserTokenResponse: Decodable {
-        let apiKeyId: String
-        let token: String
+        let apiKeyId: String?
+        let token: String?
     }
 }
