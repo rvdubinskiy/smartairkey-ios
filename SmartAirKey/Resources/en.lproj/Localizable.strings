@@ -13,6 +13,8 @@
 "auth.title" = "Sign In";
 "auth.subtitle" = "Enter your phone number to reach your doors.";
 "auth.phone" = "Phone number";
+"auth.phone.hint" = "We'll link access to your doors to this number.";
+"auth.phone.hint.invalid" = "Enter the full number: +7 and 10 digits.";
 "auth.sign_in" = "Sign In";
 "auth.signing_in" = "Signing in…";
 "auth.error.invalid" = "Couldn't sign in. Check your phone number.";
