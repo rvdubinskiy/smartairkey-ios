@@ -42,6 +42,15 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Разрешите доступ к геопозиции «Всегда», чтобы двери открывались рядом с вами, даже когда приложение закрыто.</string>
 
+	<!-- Backend configuration baked in at build time (empty by default → demo
+	     mode). CI fills these from GitHub secrets for TestFlight/release builds;
+	     locally you can instead set SAK_BASE_URL / SAK_COMPANY_TOKEN in the Xcode
+	     scheme's environment variables. -->
+	<key>SAKBaseURL</key>
+	<string></string>
+	<key>SAKCompanyToken</key>
+	<string></string>
+
 	<!-- Background operation so seamless access keeps working with the app
 	     minimised or the screen locked, within iOS limits (req. 7). -->
 	<key>UIBackgroundModes</key>

@@ -25,6 +25,16 @@ platform :ios do
       keychain_password: ENV.fetch("MATCH_KEYCHAIN_PASSWORD", "")
     )
 
+    # Bake the backend config into Info.plist so the installed TestFlight build
+    # uses it (installed apps don't see the scheme's environment variables).
+    info_plist = "SmartAirKey/Resources/Info.plist"
+    if (base_url = ENV["SAK_BASE_URL"]) && !base_url.empty?
+      set_info_plist_value(path: info_plist, key: "SAKBaseURL", value: base_url)
+    end
+    if (company_token = ENV["SAK_COMPANY_TOKEN"]) && !company_token.empty?
+      set_info_plist_value(path: info_plist, key: "SAKCompanyToken", value: company_token)
+    end
+
     # Unique, increasing build number per version (CI run number).
     build_number = ENV.fetch("BUILD_NUMBER", Time.now.strftime("%y%m%d%H%M"))
 

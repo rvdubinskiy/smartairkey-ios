@@ -36,6 +36,19 @@ Repo ▸ **Settings ▸ Secrets and variables ▸ Actions ▸ New repository sec
 | `APPLE_TEAM_ID` | your 10-character Team ID |
 | `DIST_CERT_P12` | the distribution `.p12`, base64-encoded: `base64 -i cert.p12 \| pbcopy` |
 | `DIST_CERT_PASSWORD` | the password you set when exporting the `.p12` |
+| `SAK_BASE_URL` | backend base URL, e.g. `https://api.smartairkey.com` |
+| `SAK_COMPANY_TOKEN` | company SAS token used by `GetUserToken` at sign-in |
+
+> **Backend config in TestFlight builds.** Installed apps do **not** see the
+> scheme's environment variables, so `SAK_BASE_URL` / `SAK_COMPANY_TOKEN` are
+> baked into `Info.plist` at build time by the fastlane lane (from the secrets
+> above). Empty by default → the app runs in demo mode.
+>
+> ⚠️ **Security:** baking `SAK_COMPANY_TOKEN` into the app ships a privileged
+> credential to every tester (it can mint a token for any subscriber by phone).
+> This is acceptable for internal testing only. For production, move the
+> `GetUserToken` exchange to your own server and have the app call that instead,
+> so the company token never leaves your backend.
 
 That's it — the workflow decodes the `.p12`, imports it into a temporary CI
 keychain, lets Xcode create/download the App Store provisioning profile via the
