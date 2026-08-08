@@ -25,5 +25,15 @@ Podfile.lock
 Vendor/*
 !Vendor/SDK/
 
+# Signing / fastlane (never commit certificates or build reports)
+*.p12
+*.p8
+*.mobileprovision
+*.cer
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output/
+fastlane/README.md
+
 # macOS
 .DS_Store

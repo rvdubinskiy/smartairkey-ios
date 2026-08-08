@@ -1,0 +1,4 @@
+app_identifier("com.smartairkey.seamless")
+
+# Team is provided at runtime via the APPLE_TEAM_ID env var (CI secret);
+# authentication uses the App Store Connect API key, so no Apple ID is stored.
