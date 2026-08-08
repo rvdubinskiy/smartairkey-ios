@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The app's own default keychain group. Declaring it explicitly makes
+	     Keychain reads/writes reliable (avoids errSecMissingEntitlement on some
+	     signing setups) so the auth token persists across app restarts. Using
+	     only the app's own group needs no extra capability in the portal. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.smartairkey.seamless</string>
+	</array>
+</dict>
+</plist>
