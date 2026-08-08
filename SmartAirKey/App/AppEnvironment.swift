@@ -19,6 +19,11 @@ struct AppConfig {
     /// seeded into the Keychain on launch and cleared by Sign Out.
     var developerAccessToken: String?
 
+    /// Company SAS token used to exchange a phone number for a per-user token
+    /// via `GetUserToken` at sign-in. Required for real phone sign-in; without
+    /// it the app falls back to demo sign-in. Supplied via `SAK_COMPANY_TOKEN`.
+    var companyToken: String?
+
     /// When true, keys the access-manager grants (which arrive as pending
     /// `incomingKeysRequests`) are auto-accepted on refresh so they become
     /// usable without a manual approval step. Enabled for live/test runs so
@@ -43,6 +48,7 @@ struct AppConfig {
         }
         return AppConfig(backendBaseURL: url,
                          developerAccessToken: env["SAK_SAS_TOKEN"],
+                         companyToken: env["SAK_COMPANY_TOKEN"],
                          autoApproveIncomingKeys: true)
     }
 }
@@ -108,8 +114,8 @@ final class AppEnvironment: ObservableObject {
     }
 
     private static func makeAuth(config: AppConfig) -> Authenticating {
-        if let base = config.backendBaseURL {
-            return SmartAirKeyAuthService(baseURL: base)
+        if let base = config.backendBaseURL, let company = config.companyToken, !company.isEmpty {
+            return SmartAirKeyAuthService(baseURL: base, companyToken: company)
         }
         return DemoAuthService()
     }

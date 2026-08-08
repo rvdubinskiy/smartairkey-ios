@@ -11,12 +11,12 @@
 
 // Auth
 "auth.title" = "Sign In";
-"auth.subtitle" = "Sign in to reach your doors.";
-"auth.email" = "Email";
-"auth.password" = "Password";
+"auth.subtitle" = "Enter your phone number to reach your doors.";
+"auth.phone" = "Phone number";
 "auth.sign_in" = "Sign In";
 "auth.signing_in" = "Signing in…";
-"auth.error.invalid" = "Couldn't sign in. Check your email and password.";
+"auth.error.invalid" = "Couldn't sign in. Check your phone number.";
+"auth.error.not_configured" = "Sign-in unavailable: the app isn't configured. Contact support.";
 "auth.sign_out" = "Sign Out";
 "auth.sign_out.confirm.title" = "Sign out?";
 "auth.sign_out.confirm.message" = "Your doors and access will be removed from this device.";

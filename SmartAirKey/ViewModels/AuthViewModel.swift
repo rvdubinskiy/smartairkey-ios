@@ -4,8 +4,7 @@ import Foundation
 @MainActor
 final class AuthViewModel: ObservableObject {
 
-    @Published var email = ""
-    @Published var password = ""
+    @Published var phoneNumber = ""
     @Published private(set) var isSubmitting = false
     @Published var errorMessage: String?
 
@@ -25,10 +24,9 @@ final class AuthViewModel: ObservableObject {
                   analytics: environment.analytics)
     }
 
+    /// Minimum digits before we bother calling the backend.
     var canSubmit: Bool {
-        !email.trimmingCharacters(in: .whitespaces).isEmpty
-            && !password.isEmpty
-            && !isSubmitting
+        phoneNumber.filter(\.isNumber).count >= 10 && !isSubmitting
     }
 
     func signIn() async {
@@ -36,7 +34,7 @@ final class AuthViewModel: ObservableObject {
         isSubmitting = true
         defer { isSubmitting = false }
         do {
-            let token = try await auth.signIn(email: email, password: password)
+            let token = try await auth.signIn(phoneNumber: phoneNumber)
             session.save(accessToken: token)
             analytics.log(.signedIn)
         } catch {
