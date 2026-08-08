@@ -28,6 +28,11 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<!-- Portrait-only utility app; opting out of iPad multitasking so a single
+	     orientation is allowed (App Store validation otherwise requires all
+	     four iPad orientations). -->
+	<key>UIRequiresFullScreen</key>
+	<true/>
 
 	<!-- Bluetooth permission (req. 6). Shown in plain language, no technical terms. -->
 	<key>NSBluetoothAlwaysUsageDescription</key>
@@ -52,14 +57,17 @@
 	<string></string>
 
 	<!-- Background operation so seamless access keeps working with the app
-	     minimised or the screen locked, within iOS limits (req. 7). -->
+	     minimised or the screen locked, within iOS limits (req. 7). We use
+	     Bluetooth (central/peripheral) and significant-location-change wake-ups
+	     to reach nearby doors; we do NOT schedule BGTaskScheduler jobs, so the
+	     "processing"/"fetch" modes are intentionally omitted (they would
+	     require BGTaskSchedulerPermittedIdentifiers and fail App Store
+	     validation). -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>
 		<string>bluetooth-peripheral</string>
 		<string>location</string>
-		<string>fetch</string>
-		<string>processing</string>
 	</array>
 </dict>
 </plist>
