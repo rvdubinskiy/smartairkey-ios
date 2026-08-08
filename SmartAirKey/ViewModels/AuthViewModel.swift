@@ -24,17 +24,18 @@ final class AuthViewModel: ObservableObject {
                   analytics: environment.analytics)
     }
 
-    /// Minimum digits before we bother calling the backend.
-    var canSubmit: Bool {
-        phoneNumber.filter(\.isNumber).count >= 10 && !isSubmitting
-    }
+    /// A fully-entered, valid phone number.
+    var isPhoneValid: Bool { PhoneNumberFormatter.isValid(phoneNumber) }
+
+    var canSubmit: Bool { isPhoneValid && !isSubmitting }
 
     func signIn() async {
         errorMessage = nil
         isSubmitting = true
         defer { isSubmitting = false }
         do {
-            let token = try await auth.signIn(phoneNumber: phoneNumber)
+            let phone = PhoneNumberFormatter.e164(phoneNumber) ?? phoneNumber
+            let token = try await auth.signIn(phoneNumber: phone)
             session.save(accessToken: token)
             analytics.log(.signedIn)
         } catch {

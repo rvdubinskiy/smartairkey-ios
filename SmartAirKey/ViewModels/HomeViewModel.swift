@@ -36,6 +36,9 @@ final class HomeViewModel: ObservableObject {
     private let analytics: AnalyticsLogging
     private let keyProvider: KeyProviding
     private let config: AppConfig
+    /// Whether a valid user token is present. Keys are only fetched after the
+    /// resident has authorized (phone sign-in → per-user token).
+    private let hasValidToken: () -> Bool
 
     private var cancellables = Set<AnyCancellable>()
     private var lastOpenRequestedDoorID: String?
@@ -45,13 +48,15 @@ final class HomeViewModel: ObservableObject {
          locationAuth: LocationAuthorizing,
          analytics: AnalyticsLogging,
          keyProvider: KeyProviding,
-         config: AppConfig) {
+         config: AppConfig,
+         hasValidToken: @escaping () -> Bool = { true }) {
         self.access = access
         self.bluetoothAuth = bluetoothAuth
         self.locationAuth = locationAuth
         self.analytics = analytics
         self.keyProvider = keyProvider
         self.config = config
+        self.hasValidToken = hasValidToken
         self.isSeamlessOn = access.isSeamlessAccessEnabled
         bind()
     }
@@ -62,7 +67,10 @@ final class HomeViewModel: ObservableObject {
                   locationAuth: environment.location,
                   analytics: environment.analytics,
                   keyProvider: environment.keyProvider,
-                  config: environment.config)
+                  config: environment.config,
+                  hasValidToken: { [session = environment.session] in
+                      (session.accessToken?.isEmpty == false)
+                  })
     }
 
     // MARK: Lifecycle
@@ -105,6 +113,12 @@ final class HomeViewModel: ObservableObject {
     // MARK: Keys (reqs. 1, 2, 10)
 
     func refreshKeys() async {
+        // Must be authorized first: keys are fetched only with a valid user
+        // token (obtained via phone sign-in → GetUserToken).
+        guard hasValidToken() else {
+            AppLog.backend.error("Skipping key fetch: not authorized (no user token)")
+            return
+        }
         isLoadingKeys = true
         defer { isLoadingKeys = false }
         do {
