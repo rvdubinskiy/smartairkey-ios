@@ -8,20 +8,13 @@ struct AppConfig {
     /// Support contact surfaced by the "Contact support" error action.
     var supportURL: URL? = URL(string: "mailto:support@smartairkey.com")
 
-    /// DEV/TEST ONLY: a preset **subscriber** SAS token used to skip the sign-in
-    /// screen and exercise the real backend on device. This must be the per-user
-    /// `apiKeyId:token` pair (obtained by exchanging the company SAS-TOKEN via
-    /// `GET /api/service/company/GetUserToken` — see scripts/get_user_token.sh),
-    /// NOT the company SAS-TOKEN itself. It is sent verbatim as
-    /// `Authorization: SAS-TOKEN apiKeyId:token` to `/api/mobile`.
-    /// Leave `nil` in committed code — supply it via the scheme's
-    /// `SAK_SAS_TOKEN` environment variable (safe, not stored in git). It is
-    /// seeded into the Keychain on launch and cleared by Sign Out.
-    var developerAccessToken: String?
-
     /// Company SAS token used to exchange a phone number for a per-user token
     /// via `GetUserToken` at sign-in. Required for real phone sign-in; without
     /// it the app falls back to demo sign-in. Supplied via `SAK_COMPANY_TOKEN`.
+    ///
+    /// There is deliberately no preset user-token shortcut: the app must
+    /// authorize by phone first, and only the resulting per-user token is used
+    /// to fetch keys.
     var companyToken: String?
 
     /// When true, keys the access-manager grants (which arrive as pending
@@ -35,11 +28,11 @@ struct AppConfig {
     /// Resolves the runtime config from the launch environment so secrets stay
     /// out of source control. In Xcode: Product ▸ Scheme ▸ Edit Scheme… ▸ Run ▸
     /// Arguments ▸ Environment Variables, add:
-    ///   • `SAK_BASE_URL`  = https://apidev.smartairkey.com  (your backend)
-    ///   • `SAK_SAS_TOKEN` = <your SAS token>                (optional)
-    /// With `SAK_BASE_URL` set the app runs against the live backend; with a
-    /// token too, it skips sign-in and immediately fetches keys. No env vars →
-    /// unchanged demo mode.
+    ///   • `SAK_BASE_URL`     = https://api.smartairkey.com  (your backend)
+    ///   • `SAK_COMPANY_TOKEN`= <company SAS token>          (enables phone sign-in)
+    /// With `SAK_BASE_URL` set the app runs against the live backend; the user
+    /// then signs in by phone number to obtain a per-user token. No env vars →
+    /// demo mode.
     static var resolved: AppConfig {
         let env = ProcessInfo.processInfo.environment
         guard let raw = env["SAK_BASE_URL"]?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -47,7 +40,6 @@ struct AppConfig {
             return .demo
         }
         return AppConfig(backendBaseURL: url,
-                         developerAccessToken: env["SAK_SAS_TOKEN"],
                          companyToken: env["SAK_COMPANY_TOKEN"],
                          autoApproveIncomingKeys: true)
     }
@@ -90,18 +82,6 @@ final class AppEnvironment: ObservableObject {
         self.auth = auth ?? AppEnvironment.makeAuth(config: config)
         self.keyProvider = keyProvider ?? AppEnvironment.makeKeyProvider(config: config,
                                                                         session: session)
-        seedDeveloperTokenIfNeeded()
-    }
-
-    /// DEV/TEST: if a preset SAS token is configured, seed it into the session
-    /// so the app skips sign-in and fetches keys with it. No-op when absent or
-    /// already signed in.
-    private func seedDeveloperTokenIfNeeded() {
-        guard let token = config.developerAccessToken?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-              !token.isEmpty, !session.isSignedIn else { return }
-        session.save(accessToken: token)
-        AppLog.auth.info("Seeded preset SAS token into session (test build).")
     }
 
     private static func makeAccessService(analytics: AnalyticsLogging,
