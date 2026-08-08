@@ -19,26 +19,24 @@ struct KeychainStore {
     }
 
     func setData(_ data: Data, for account: String) throws {
-        let query: [String: Any] = [
+        // Delete-then-add is the most reliable write: it avoids SecItemUpdate
+        // edge cases (e.g. changing accessibility) that could leave the value
+        // unpersisted. `AfterFirstUnlock` keeps the token readable across app
+        // termination and while locked (background BLE), so it survives a full
+        // app restart.
+        let base: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
-        let attributes: [String: Any] = [
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-        ]
+        SecItemDelete(base as CFDictionary)
 
-        let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-        switch status {
-        case errSecSuccess:
-            return
-        case errSecItemNotFound:
-            var insert = query
-            insert.merge(attributes) { _, new in new }
-            let addStatus = SecItemAdd(insert as CFDictionary, nil)
-            guard addStatus == errSecSuccess else { throw KeychainError.unexpectedStatus(addStatus) }
-        default:
+        var insert = base
+        insert[kSecValueData as String] = data
+        insert[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+
+        let status = SecItemAdd(insert as CFDictionary, nil)
+        guard status == errSecSuccess else {
             throw KeychainError.unexpectedStatus(status)
         }
     }
