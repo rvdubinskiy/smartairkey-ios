@@ -39,6 +39,9 @@ final class HomeViewModel: ObservableObject {
     /// Whether a valid user token is present. Keys are only fetched after the
     /// resident has authorized (phone sign-in → per-user token).
     private let hasValidToken: () -> Bool
+    /// Called when the backend rejects our token (user not found / token
+    /// invalid) so the app can sign the user out and return to sign-in.
+    private let onAuthenticationLost: () -> Void
 
     private var cancellables = Set<AnyCancellable>()
     private var lastOpenRequestedDoorID: String?
@@ -49,7 +52,8 @@ final class HomeViewModel: ObservableObject {
          analytics: AnalyticsLogging,
          keyProvider: KeyProviding,
          config: AppConfig,
-         hasValidToken: @escaping () -> Bool = { true }) {
+         hasValidToken: @escaping () -> Bool = { true },
+         onAuthenticationLost: @escaping () -> Void = {}) {
         self.access = access
         self.bluetoothAuth = bluetoothAuth
         self.locationAuth = locationAuth
@@ -57,6 +61,7 @@ final class HomeViewModel: ObservableObject {
         self.keyProvider = keyProvider
         self.config = config
         self.hasValidToken = hasValidToken
+        self.onAuthenticationLost = onAuthenticationLost
         self.isSeamlessOn = access.isSeamlessAccessEnabled
         bind()
     }
@@ -70,6 +75,9 @@ final class HomeViewModel: ObservableObject {
                   config: environment.config,
                   hasValidToken: { [session = environment.session] in
                       (session.accessToken?.isEmpty == false)
+                  },
+                  onAuthenticationLost: { [weak environment] in
+                      environment?.signOutCleanup()
                   })
     }
 
@@ -143,6 +151,13 @@ final class HomeViewModel: ObservableObject {
 
             let summary = try access.loadKeys(serverJSON: data)
             AppLog.backend.info("Keys loaded active=\(summary.active, privacy: .public) dropped=\(summary.dropped, privacy: .public)")
+        } catch let error as BackendError where error.isAuthFailure {
+            // The token is no longer valid (user not found / revoked): don't
+            // leave the user stuck on the home screen — sign out so they can
+            // authorize again.
+            AppLog.backend.error("Authentication lost — signing out")
+            analytics.log(.error(domain: "auth", reason: "unauthorized"))
+            onAuthenticationLost()
         } catch {
             AppLog.backend.error("Key refresh failed: \(String(describing: error), privacy: .public)")
             analytics.log(.error(domain: "keys", reason: "\(error)"))
