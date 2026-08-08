@@ -48,7 +48,10 @@ struct HomeView: View {
         }
         .onAppear { viewModel.onAppear() }
         .overlay { successOverlay }
-        .animation(.default, value: viewModel.doors)
+        // Animate only when the set of doors changes (added/removed/reordered),
+        // not on every status tick — re-animating 20+ cards on each SDK poll
+        // was a major source of jank.
+        .animation(.default, value: viewModel.doors.map(\.id))
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.successDoorName)
         .accessErrorAlert($viewModel.activeError) { action in
             viewModel.perform(action)

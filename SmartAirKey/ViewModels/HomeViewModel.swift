@@ -89,8 +89,13 @@ final class HomeViewModel: ObservableObject {
     }
 
     private func bind() {
+        // The SDK polls every controller continuously, so `doors` can fire many
+        // times a second with 20+ locks. Drop no-op updates and coalesce bursts
+        // to at most a few per second so the main thread (and the whole UI,
+        // including the sign-out/sign-in screens) stays responsive.
         access.doors
-            .receive(on: DispatchQueue.main)
+            .removeDuplicates()
+            .throttle(for: .milliseconds(300), scheduler: DispatchQueue.main, latest: true)
             .sink { [weak self] doors in self?.doors = doors }
             .store(in: &cancellables)
 

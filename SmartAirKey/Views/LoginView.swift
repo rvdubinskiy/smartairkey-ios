@@ -22,7 +22,11 @@ struct LoginView: View {
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle(L10n.string("auth.title"))
         }
-        .onAppear { phoneFocused = true }
+        // Raise the keyboard after the sign-out transition settles, so the two
+        // animations don't run at once (which felt laggy).
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { phoneFocused = true }
+        }
     }
 
     // MARK: Header
