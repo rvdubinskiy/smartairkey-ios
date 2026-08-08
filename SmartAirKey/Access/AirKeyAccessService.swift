@@ -27,6 +27,11 @@ final class AirKeyAccessService: NSObject, SeamlessAccessService {
     private var doorOrder: [String] = []
     /// Latest known status per door id.
     private var statuses: [String: DoorStatus] = [:]
+    /// Pending manual-open timeouts so a door never sticks on "Opening…" if the
+    /// controller never confirms (e.g. it's out of range or has no antenna).
+    private var openTimeouts: [String: DispatchWorkItem] = [:]
+    /// How long to wait for an open to be confirmed before failing gracefully.
+    private let openTimeout: TimeInterval = 12
 
     private let device: AirKeySmartDeviceCoreProtocol
     private let analytics: AnalyticsLogging
@@ -101,7 +106,29 @@ final class AirKeyAccessService: NSObject, SeamlessAccessService {
         }
         setStatus(.opening, for: doorID)
         device.openLock(for: deviceName, key: key)
+        scheduleOpenTimeout(for: doorID)
         AppLog.access.info("Manual open requested door=\(doorID, privacy: .public)")
+    }
+
+    /// Fails an open that never gets confirmed, so the door leaves the
+    /// "Opening…" state instead of spinning forever.
+    private func scheduleOpenTimeout(for doorID: String) {
+        openTimeouts[doorID]?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.openTimeouts[doorID] = nil
+            guard self.statuses[doorID] == .opening else { return }
+            self.setStatus(.unavailable, for: doorID)
+            self.eventsSubject.send(.openFailed(doorID: doorID))
+            AppLog.access.error("Open timed out door=\(doorID, privacy: .public)")
+        }
+        openTimeouts[doorID] = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + openTimeout, execute: work)
+    }
+
+    private func cancelOpenTimeout(for doorID: String) {
+        openTimeouts[doorID]?.cancel()
+        openTimeouts[doorID] = nil
     }
 
     func refreshStatuses() {
@@ -110,6 +137,8 @@ final class AirKeyAccessService: NSObject, SeamlessAccessService {
 
     func clear() {
         device.removeAllKeys()
+        openTimeouts.values.forEach { $0.cancel() }
+        openTimeouts.removeAll()
         keysByDoorID.removeAll()
         doorIDByDeviceName.removeAll()
         doorOrder.removeAll()
@@ -191,6 +220,12 @@ extension AirKeyAccessService: AirKeyDeviceDelegate {
         let newStatus = LockStateMapping.doorStatus(for: raw)
         let previous = statuses[doorID]
         statuses[doorID] = newStatus
+
+        // The controller responded, so any pending open timeout is resolved
+        // (unless it's still reporting "opening", in which case keep waiting).
+        if newStatus != .opening {
+            DispatchQueue.main.async { [weak self] in self?.cancelOpenTimeout(for: doorID) }
+        }
 
         // Surface a successful open exactly once on the rising edge.
         if newStatus == .opened && previous != .opened {

@@ -11,14 +11,11 @@ struct LoginView: View {
                     header
 
                     VStack(spacing: 16) {
-                        TextField(L10n.string("auth.email"), text: $viewModel.email)
-                            .textContentType(.username)
-                            .keyboardType(.emailAddress)
+                        TextField(L10n.string("auth.phone"), text: $viewModel.phoneNumber)
+                            .textContentType(.telephoneNumber)
+                            .keyboardType(.phonePad)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
-
-                        SecureField(L10n.string("auth.password"), text: $viewModel.password)
-                            .textContentType(.password)
                     }
                     .textFieldStyle(.roundedBorder)
                     .font(.body)
