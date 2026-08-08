@@ -34,14 +34,26 @@ struct AppConfig {
     /// then signs in by phone number to obtain a per-user token. No env vars →
     /// demo mode.
     static var resolved: AppConfig {
-        let env = ProcessInfo.processInfo.environment
-        guard let raw = env["SAK_BASE_URL"]?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !raw.isEmpty, let url = URL(string: raw) else {
+        guard let raw = value(env: "SAK_BASE_URL", plist: "SAKBaseURL"),
+              let url = URL(string: raw) else {
             return .demo
         }
         return AppConfig(backendBaseURL: url,
-                         companyToken: env["SAK_COMPANY_TOKEN"],
+                         companyToken: value(env: "SAK_COMPANY_TOKEN", plist: "SAKCompanyToken"),
                          autoApproveIncomingKeys: true)
+    }
+
+    /// Resolves a configuration value. Runtime env vars (Xcode scheme) win for
+    /// local debugging; otherwise the value baked into Info.plist at build time
+    /// — which is what a TestFlight/release build uses, since installed apps
+    /// don't inherit the scheme's environment variables.
+    private static func value(env envKey: String, plist plistKey: String) -> String? {
+        let raw = ProcessInfo.processInfo.environment[envKey]
+            ?? (Bundle.main.object(forInfoDictionaryKey: plistKey) as? String)
+        guard let value = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty,
+              !value.hasPrefix("$(") else { return nil } // unexpanded build setting
+        return value
     }
 }
 

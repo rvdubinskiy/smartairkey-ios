@@ -72,6 +72,9 @@ jobs:
           DIST_CERT_PATH: dist_cert.p12
           DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
           BUILD_NUMBER: ${{ github.run_number }}
+          # Backend config baked into the build (see fastlane/Fastfile).
+          SAK_BASE_URL: ${{ secrets.SAK_BASE_URL }}
+          SAK_COMPANY_TOKEN: ${{ secrets.SAK_COMPANY_TOKEN }}
         run: bundle exec fastlane beta
 
       - name: Clean up secrets
