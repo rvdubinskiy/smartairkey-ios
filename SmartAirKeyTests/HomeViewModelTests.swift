@@ -143,6 +143,27 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(bt.requestCount, 1)
         XCTAssertGreaterThanOrEqual(loc.requestCount, 1)
     }
+
+    /// A backend auth failure (user not found / token invalid) signs the user
+    /// out instead of leaving them stuck on the home screen.
+    func testUnauthorizedResponseSignsOut() async {
+        var signedOut = false
+        let vm = HomeViewModel(
+            access: MockAccessService(preferences: InMemoryPreferences(), analytics: SpyAnalytics()),
+            bluetoothAuth: FakeBluetoothAuth(.ready),
+            locationAuth: FakeLocationAuth(.ready),
+            analytics: SpyAnalytics(),
+            keyProvider: UnauthorizedKeyProvider(),
+            config: .demo,
+            hasValidToken: { true },
+            onAuthenticationLost: { signedOut = true }
+        )
+
+        await vm.refreshKeys()
+
+        XCTAssertTrue(signedOut, "a 401/unauthorized should force sign-out")
+        XCTAssertNil(vm.activeError, "no generic error alert when signing out")
+    }
 }
 
 // MARK: - Test doubles
@@ -177,6 +198,10 @@ final class FakeLocationAuth: LocationAuthorizing {
     }
     func requestAlwaysAuthorization() { requestCount += 1 }
     func set(_ value: LocationAvailability) { subject.send(value) }
+}
+
+final class UnauthorizedKeyProvider: KeyProviding {
+    func fetchDigitalKeys() async throws -> Data { throw BackendError.unauthorized }
 }
 
 final class EmptyKeyProvider: KeyProviding {

@@ -20,12 +20,23 @@ protocol KeyRequestApproving {
 
 enum BackendError: LocalizedError {
     case notAuthenticated
+    /// The server rejected our token (401/403) — the user/token is no longer
+    /// valid, so the app should sign out.
+    case unauthorized
     case badResponse(status: Int)
     case emptyData
     case transport(Error)
 
     var errorDescription: String? {
         L10n.string("error.keys_failed.message")
+    }
+
+    /// Whether this represents an authentication failure that should sign out.
+    var isAuthFailure: Bool {
+        switch self {
+        case .notAuthenticated, .unauthorized: return true
+        default: return false
+        }
     }
 }
 
@@ -78,6 +89,10 @@ struct SmartAirKeyBackendClient: KeyProviding, KeyRequestApproving {
                 throw BackendError.badResponse(status: -1)
             }
             AppLog.backend.info("Keys response status=\(http.statusCode, privacy: .public) bytes=\(data.count, privacy: .public)")
+            if http.statusCode == 401 || http.statusCode == 403 {
+                AppLog.backend.error("Keys request unauthorized status=\(http.statusCode, privacy: .public)")
+                throw BackendError.unauthorized
+            }
             guard (200..<300).contains(http.statusCode) else {
                 let body = String(data: data.prefix(600), encoding: .utf8) ?? "<binary>"
                 AppLog.backend.error("Keys request failed status=\(http.statusCode, privacy: .public) body=\(body, privacy: .public)")
@@ -154,6 +169,7 @@ struct SmartAirKeyBackendClient: KeyProviding, KeyRequestApproving {
 
         let (data, response) = try await session.data(for: request)
         let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+        if code == 401 || code == 403 { throw BackendError.unauthorized }
         guard (200..<300).contains(code) else {
             let body = String(data: data.prefix(400), encoding: .utf8) ?? "<binary>"
             AppLog.backend.error("KeyRequestApprove failed id=\(id, privacy: .public) status=\(code, privacy: .public) body=\(body, privacy: .public)")
