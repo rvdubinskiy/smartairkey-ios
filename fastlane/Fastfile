@@ -16,13 +16,24 @@ platform :ios do
     )
 
     # Import the Apple Distribution certificate (private key) from the .p12
-    # decoded by the workflow. The provisioning profile is created/fetched
-    # automatically at build time via the API key (-allowProvisioningUpdates).
+    # decoded by the workflow into the temporary CI keychain.
     import_certificate(
       certificate_path: ENV.fetch("DIST_CERT_PATH", "dist_cert.p12"),
       certificate_password: ENV.fetch("DIST_CERT_PASSWORD"),
       keychain_name: ENV.fetch("MATCH_KEYCHAIN_NAME", "fastlane_tmp_keychain"),
       keychain_password: ENV.fetch("MATCH_KEYCHAIN_PASSWORD", "")
+    )
+
+    team_id = ENV.fetch("APPLE_TEAM_ID")
+    app_id = "com.smartairkey.seamless"
+
+    # Fetch/create the App Store provisioning profile via the API key and install
+    # it, so we can sign manually. (Automatic signing on CI fails with
+    # "No Accounts" because xcodebuild has no signed-in Apple ID.)
+    profile_name = get_provisioning_profile(
+      api_key: api_key,
+      app_identifier: app_id,
+      force: true
     )
 
     # Bake the backend config into Info.plist so the installed TestFlight build
@@ -43,11 +54,17 @@ platform :ios do
       scheme: "SmartAirKey",
       configuration: "Release",
       export_method: "app-store",
-      xcargs: "DEVELOPMENT_TEAM=#{ENV.fetch('APPLE_TEAM_ID')} CURRENT_PROJECT_VERSION=#{build_number} -allowProvisioningUpdates",
+      xcargs: [
+        "DEVELOPMENT_TEAM=#{team_id}",
+        "CURRENT_PROJECT_VERSION=#{build_number}",
+        "CODE_SIGN_STYLE=Manual",
+        "PROVISIONING_PROFILE_SPECIFIER=\"#{profile_name}\""
+      ].join(" "),
       export_options: {
         method: "app-store",
-        teamID: ENV.fetch("APPLE_TEAM_ID"),
-        signingStyle: "automatic"
+        teamID: team_id,
+        signingStyle: "manual",
+        provisioningProfiles: { app_id => profile_name }
       }
     )
 
