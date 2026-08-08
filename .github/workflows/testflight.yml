@@ -23,7 +23,9 @@ concurrency:
 jobs:
   deploy:
     name: Build & upload to TestFlight
-    runs-on: macos-14
+    # macos-15 ships Xcode 26 / the iOS 26 SDK, which App Store Connect now
+    # requires for all uploads ("must be built with the iOS 26 SDK or later").
+    runs-on: macos-15
     timeout-minutes: 45
 
     steps:
