@@ -5,6 +5,7 @@
 "common.retry" = "Try Again";
 "common.cancel" = "Cancel";
 "common.ok" = "Got It";
+"common.close" = "Close";
 "common.open_settings" = "Open Settings";
 "common.contact_support" = "Contact Support";
 "common.done" = "Done";
@@ -44,7 +45,7 @@
 "permissions.explain.footer" = "Both permissions are needed for doors to open automatically. You can change them in Settings anytime.";
 
 // Doors
-"doors.section" = "My Doors";
+"doors.section" = "Intercoms near you";
 "doors.empty.title" = "No doors yet";
 "doors.empty.message" = "Doors appear here once you're granted access.";
 "door.open" = "Open";

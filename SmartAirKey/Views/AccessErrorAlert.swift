@@ -12,7 +12,7 @@ import UIKit
 private struct AccessErrorAlertPresenter: UIViewControllerRepresentable {
 
     @Binding var error: AccessError?
-    let onPrimary: (ErrorAction) -> Void
+    let onPrimary: (AccessError, ErrorAction) -> Void
 
     func makeUIViewController(context: Context) -> UIViewController {
         UIViewController()
@@ -30,15 +30,22 @@ private struct AccessErrorAlertPresenter: UIViewControllerRepresentable {
         let action = error.primaryAction
         let primary = UIAlertAction(title: action.title, style: .default) { _ in
             self.error = nil
-            onPrimary(action)
+            // Pass the resolved error so the handler can route to the right
+            // Settings screen (the binding is already cleared above).
+            onPrimary(error, action)
         }
-        let dismiss = UIAlertAction(title: L10n.string("common.ok"), style: .cancel) { _ in
+        // The dismiss button is deliberately *not* a `.cancel` action: UIKit
+        // always renders `.cancel` bold, which stole the emphasis from the real
+        // call to action. `.destructive` renders it red and unemphasised so the
+        // focus stays on "Open Settings" — the user should go to Settings, not
+        // just close the dialog.
+        let dismiss = UIAlertAction(title: L10n.string("common.close"), style: .destructive) { _ in
             self.error = nil
         }
         alert.addAction(primary)
         alert.addAction(dismiss)
-        // Focus the call to action ("Open Settings" / "Try Again" / "Contact
-        // Support"), not the dismiss button.
+        // Emphasise the call to action ("Open Settings" / "Try Again" / "Contact
+        // Support") — it becomes the bold, default-tinted button.
         alert.preferredAction = primary
 
         DispatchQueue.main.async {
@@ -52,8 +59,9 @@ extension View {
 
     /// Shows an emphasised-action alert for the bound `AccessError` (UI req. 4).
     /// The primary action button is focused; the dismiss button is secondary.
+    /// The `onPrimary` handler receives the resolved error and its action.
     func accessErrorAlert(_ error: Binding<AccessError?>,
-                          onPrimary: @escaping (ErrorAction) -> Void) -> some View {
+                          onPrimary: @escaping (AccessError, ErrorAction) -> Void) -> some View {
         background(AccessErrorAlertPresenter(error: error, onPrimary: onPrimary))
     }
 }
