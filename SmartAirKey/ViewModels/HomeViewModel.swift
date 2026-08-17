@@ -92,6 +92,11 @@ final class HomeViewModel: ObservableObject {
         // granted.
         bluetoothAuth.requestAuthorization()
         locationAuth.requestAlwaysAuthorization()
+        // If an access was revoked or downgraded while we were away, seamless
+        // access can no longer work — switch it off so the toggle can't stay on
+        // with a missing access. The user must re-grant everything to turn it
+        // back on. (Re-checked again when authorization callbacks land.)
+        enforceSeamlessAccessRequirements()
         access.start()
         Task { await refreshKeys() }
     }
@@ -285,9 +290,9 @@ final class HomeViewModel: ObservableObject {
     }
 
     /// Reacts when Bluetooth or location authorization changes: finishes a
-    /// pending enable once everything is granted, otherwise nags (Bluetooth
-    /// first, then location) while the user relies on — or is trying to turn on
-    /// — seamless access.
+    /// pending enable once everything is granted; turns the feature *off* if an
+    /// access was lost while it was on; otherwise nags (Bluetooth first, then
+    /// location) while the user is trying to turn seamless access on.
     private func reactToAccessChange() {
         if pendingEnable, allAccessGranted {
             pendingEnable = false
@@ -296,9 +301,27 @@ final class HomeViewModel: ObservableObject {
             return
         }
 
-        if isSeamlessOn || pendingEnable, let error = bluetooth.error ?? location.error {
+        if isSeamlessOn {
+            // On but an access is now missing → switch off (does nothing while
+            // everything is still granted or authorization is unresolved).
+            enforceSeamlessAccessRequirements()
+        } else if pendingEnable, let error = bluetooth.error ?? location.error {
             activeError = error
         }
+    }
+
+    /// Seamless access requires *every* access at all times. If it's currently
+    /// on but an access has been revoked or downgraded, switch it off and
+    /// surface what to fix — the user must re-grant everything before enabling
+    /// it again. Acts only on a definite bad state, never while authorization is
+    /// still resolving (`.unknown`), so a valid setup is never turned off by a
+    /// transient state.
+    private func enforceSeamlessAccessRequirements() {
+        guard isSeamlessOn else { return }
+        guard let error = bluetooth.error ?? location.error else { return }
+        AppLog.access.info("Access lost while seamless was on — disabling")
+        applySeamless(false)
+        activeError = error
     }
 
     // MARK: Error actions (UI req. 4)
