@@ -5,6 +5,7 @@
 "common.retry" = "Повторить";
 "common.cancel" = "Отмена";
 "common.ok" = "Понятно";
+"common.close" = "Закрыть";
 "common.open_settings" = "Открыть настройки";
 "common.contact_support" = "Связаться с поддержкой";
 "common.done" = "Готово";
@@ -44,7 +45,7 @@
 "permissions.explain.footer" = "Оба разрешения нужны для автоматического открытия дверей. Их можно изменить в настройках в любой момент.";
 
 // Doors
-"doors.section" = "Мои двери";
+"doors.section" = "Домофоны рядом с вами";
 "doors.empty.title" = "Пока нет доступных дверей";
 "doors.empty.message" = "Когда вам выдадут доступ, двери появятся здесь.";
 "door.open" = "Открыть";

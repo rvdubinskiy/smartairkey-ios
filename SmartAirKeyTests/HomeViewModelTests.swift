@@ -45,6 +45,36 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(loc.requestCount, 1, "location should be requested")
     }
 
+    /// Bluetooth ready but location fully denied → must NOT enable. Only
+    /// "Always" location unlocks the feature.
+    func testEnableBlockedWhenLocationDenied() {
+        let (vm, _, _, access) = makeViewModel(bluetooth: .ready, location: .denied)
+
+        vm.setSeamless(true)
+
+        XCTAssertFalse(vm.isSeamlessOn)
+        XCTAssertFalse(access.isSeamlessAccessEnabled)
+        XCTAssertTrue(vm.pendingEnable)
+    }
+
+    /// A pending enable must stay blocked if location only reaches "While Using"
+    /// — "Always" is mandatory for opening doors while the app is closed.
+    func testPendingEnableStaysBlockedWithWhenInUseLocation() {
+        let (vm, bt, loc, access) = makeViewModel(bluetooth: .unknown, location: .unknown)
+
+        vm.setSeamless(true)
+        bt.set(.ready)
+        loc.set(.whenInUseOnly) // upgraded, but not all the way to "Always".
+
+        let settled = expectation(description: "pipeline settled")
+        DispatchQueue.main.async { settled.fulfill() }
+        wait(for: [settled], timeout: 2.0)
+
+        XCTAssertFalse(vm.isSeamlessOn, "When-In-Use is not enough; needs Always")
+        XCTAssertFalse(access.isSeamlessAccessEnabled)
+        XCTAssertTrue(vm.pendingEnable)
+    }
+
     /// Location "Always" but Bluetooth denied → must NOT enable.
     func testEnableBlockedWhenBluetoothDenied() {
         let (vm, _, _, access) = makeViewModel(bluetooth: .denied, location: .ready)

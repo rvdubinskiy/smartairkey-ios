@@ -303,12 +303,10 @@ final class HomeViewModel: ObservableObject {
 
     // MARK: Error actions (UI req. 4)
 
-    func perform(_ action: ErrorAction) {
+    func perform(_ action: ErrorAction, for error: AccessError? = nil) {
         switch action {
         case .openSettings:
-            if let url = URL(string: UIApplication.openSettingsURLString) {
-                UIApplication.shared.open(url)
-            }
+            openSettings(for: error ?? activeError)
         case .retry:
             let doorID = lastOpenRequestedDoorID
             activeError = nil
@@ -323,5 +321,21 @@ final class HomeViewModel: ObservableObject {
             }
         }
         if action != .retry { activeError = nil }
+    }
+
+    /// Opens the most relevant Settings screen for the error. When Bluetooth is
+    /// *off* we try to deep-link straight to the Bluetooth screen — the on/off
+    /// toggle the user actually needs — and fall back to the app's own Settings
+    /// page if that can't be opened. A *denied* Bluetooth permission (and every
+    /// other error) goes to the app page, where the permission toggles live.
+    private func openSettings(for error: AccessError?) {
+        let appSettings = URL(string: UIApplication.openSettingsURLString)
+        if error == .bluetoothOff, let bluetoothPane = URL(string: "App-Prefs:root=Bluetooth") {
+            UIApplication.shared.open(bluetoothPane) { opened in
+                if !opened, let appSettings { UIApplication.shared.open(appSettings) }
+            }
+            return
+        }
+        if let appSettings { UIApplication.shared.open(appSettings) }
     }
 }

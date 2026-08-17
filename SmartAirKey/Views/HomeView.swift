@@ -5,6 +5,7 @@ struct HomeView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @StateObject var viewModel: HomeViewModel
     @State private var confirmSignOut = false
+    @State private var doorsExpanded = true
 
     var body: some View {
         NavigationStack {
@@ -53,8 +54,8 @@ struct HomeView: View {
         // was a major source of jank.
         .animation(.default, value: viewModel.doors.map(\.id))
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.successDoorName)
-        .accessErrorAlert($viewModel.activeError) { action in
-            viewModel.perform(action)
+        .accessErrorAlert($viewModel.activeError) { error, action in
+            viewModel.perform(action, for: error)
         }
         .confirmationDialog(
             L10n.string("auth.sign_out.confirm.title"),
@@ -99,7 +100,7 @@ struct HomeView: View {
                 Text(error.message).font(.footnote).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            Button(error.primaryAction.title) { viewModel.perform(error.primaryAction) }
+            Button(error.primaryAction.title) { viewModel.perform(error.primaryAction, for: error) }
                 .font(.subheadline.weight(.semibold))
                 .buttonStyle(.bordered)
         }
@@ -107,22 +108,40 @@ struct HomeView: View {
         .accessibilityElement(children: .combine)
     }
 
+    // Collapsible "Intercoms near you" list so it can be tucked away — the list
+    // can grow long with many nearby intercoms.
     private var doorsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.string("doors.section"))
-                .font(.headline)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityAddTraits(.isHeader)
-
-            if viewModel.doors.isEmpty {
-                emptyState
-            } else {
-                ForEach(viewModel.doors) { door in
-                    DoorRowView(door: door) { viewModel.open(door) }
+        DisclosureGroup(isExpanded: $doorsExpanded) {
+            VStack(alignment: .leading, spacing: 12) {
+                if viewModel.doors.isEmpty {
+                    emptyState
+                } else {
+                    ForEach(viewModel.doors) { door in
+                        DoorRowView(door: door) { viewModel.open(door) }
+                    }
                 }
             }
+            .padding(.top, 12)
+        } label: {
+            HStack(spacing: 8) {
+                Text(L10n.string("doors.section"))
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                if !viewModel.doors.isEmpty {
+                    Text("\(viewModel.doors.count)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color(.tertiarySystemFill), in: Capsule())
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .accessibilityAddTraits(.isHeader)
         }
+        .tint(.secondary)
+        .animation(.default, value: doorsExpanded)
     }
 
     private var emptyState: some View {

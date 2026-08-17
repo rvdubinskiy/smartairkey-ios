@@ -44,8 +44,10 @@ final class BluetoothAuthorization: NSObject, ObservableObject {
     private var manager: CBCentralManager?
 
     /// Creates the central manager, which triggers the system permission prompt
-    /// on first use. We suppress the default "turn on Bluetooth" system alert
-    /// (`ShowPowerAlert = false`) and present our own friendly message instead.
+    /// on first use. `ShowPowerAlert = true` lets iOS present its native
+    /// "Turn On Bluetooth" alert when the radio is off — its **Settings** button
+    /// deep-links straight to the Bluetooth screen (the on/off toggle the user
+    /// needs), which no public URL can reach. Our own banner/alert complements it.
     func requestAuthorization() {
         guard manager == nil else {
             // Re-evaluate current state.
@@ -55,7 +57,7 @@ final class BluetoothAuthorization: NSObject, ObservableObject {
         manager = CBCentralManager(
             delegate: self,
             queue: nil,
-            options: [CBCentralManagerOptionShowPowerAlertKey: false]
+            options: [CBCentralManagerOptionShowPowerAlertKey: true]
         )
     }
 }
