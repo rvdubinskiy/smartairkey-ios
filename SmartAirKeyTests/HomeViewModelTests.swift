@@ -15,6 +15,14 @@ final class HomeViewModelTests: XCTestCase {
         super.tearDown()
     }
 
+    /// Lets the main-queue async pipeline (Combine sinks delivered on
+    /// `DispatchQueue.main`) drain before asserting.
+    private func waitForMainQueue() {
+        let settled = expectation(description: "main queue settled")
+        DispatchQueue.main.async { settled.fulfill() }
+        wait(for: [settled], timeout: 2.0)
+    }
+
     private func makeViewModel(
         bluetooth: BluetoothAvailability,
         location: LocationAvailability,
@@ -148,6 +156,64 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertFalse(vm.isSeamlessOn, "must not enable without location Always")
         XCTAssertFalse(access.isSeamlessAccessEnabled)
         XCTAssertTrue(vm.pendingEnable)
+    }
+
+    /// Feature on, then Bluetooth is revoked while running → it must switch OFF
+    /// automatically (it can't work without every access).
+    func testSeamlessTurnsOffWhenBluetoothRevoked() {
+        let prefs = InMemoryPreferences()
+        prefs.isSeamlessAccessEnabled = true
+        let (vm, bt, _, access) = makeViewModel(bluetooth: .ready, location: .ready, preferences: prefs)
+        XCTAssertTrue(vm.isSeamlessOn)
+
+        bt.set(.denied)
+        waitForMainQueue()
+
+        XCTAssertFalse(vm.isSeamlessOn, "must switch off when an access is revoked")
+        XCTAssertFalse(access.isSeamlessAccessEnabled)
+        XCTAssertNotNil(vm.activeError, "the user should be told what to fix")
+    }
+
+    /// Feature on, then location is downgraded from "Always" to "While Using" →
+    /// must switch OFF ("Always" is mandatory).
+    func testSeamlessTurnsOffWhenLocationDowngraded() {
+        let prefs = InMemoryPreferences()
+        prefs.isSeamlessAccessEnabled = true
+        let (vm, _, loc, access) = makeViewModel(bluetooth: .ready, location: .ready, preferences: prefs)
+        XCTAssertTrue(vm.isSeamlessOn)
+
+        loc.set(.whenInUseOnly)
+        waitForMainQueue()
+
+        XCTAssertFalse(vm.isSeamlessOn)
+        XCTAssertFalse(access.isSeamlessAccessEnabled)
+    }
+
+    /// Opening the toggle screen with the feature on but an access already
+    /// missing must switch it off (req: check on appear).
+    func testOnAppearDisablesSeamlessWhenAccessMissing() {
+        let prefs = InMemoryPreferences()
+        prefs.isSeamlessAccessEnabled = true
+        let (vm, _, _, access) = makeViewModel(bluetooth: .off, location: .ready, preferences: prefs)
+
+        vm.onAppear()
+        waitForMainQueue()
+
+        XCTAssertFalse(vm.isSeamlessOn, "must not stay on when an access is missing")
+        XCTAssertFalse(access.isSeamlessAccessEnabled)
+    }
+
+    /// A valid setup must NOT be turned off when the screen appears.
+    func testOnAppearKeepsSeamlessOnWhenAllAccessGranted() {
+        let prefs = InMemoryPreferences()
+        prefs.isSeamlessAccessEnabled = true
+        let (vm, _, _, access) = makeViewModel(bluetooth: .ready, location: .ready, preferences: prefs)
+
+        vm.onAppear()
+        waitForMainQueue()
+
+        XCTAssertTrue(vm.isSeamlessOn, "a fully-granted setup stays on")
+        XCTAssertTrue(access.isSeamlessAccessEnabled)
     }
 
     /// Turning it off is always allowed and clears any pending intent.
