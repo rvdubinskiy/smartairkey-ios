@@ -45,6 +45,10 @@ final class HomeViewModel: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
     private var lastOpenRequestedDoorID: String?
+    /// Whether keys have ever loaded successfully this session. Once they have,
+    /// a failed *refresh* degrades gracefully (keep the loaded doors, no blocking
+    /// alert) instead of nagging on every pull-to-refresh.
+    private var hasLoadedKeysOnce = false
 
     init(access: SeamlessAccessService,
          bluetoothAuth: BluetoothAuthorizing,
@@ -144,17 +148,31 @@ final class HomeViewModel: ObservableObject {
 
             // Accept any keys the access-manager granted (pending
             // `incomingKeysRequests`) so they become usable, then refetch to
-            // pick up the now-approved keys/cryptoKeys.
+            // pick up the now-approved keys/cryptoKeys. This is **best-effort**:
+            // if approval fails we still load whatever keys are already usable,
+            // rather than failing the whole refresh (a single un-approvable
+            // pending request must not blank out the door list). Auth failures
+            // are rethrown so we can sign out.
             if config.autoApproveIncomingKeys,
                let approver = keyProvider as? KeyRequestApproving {
-                let approved = try await approver.approvePendingKeyRequests(in: data)
-                if approved > 0 {
-                    AppLog.backend.info("Auto-approved \(approved, privacy: .public) key request(s); refetching")
-                    data = try await keyProvider.fetchDigitalKeys()
+                do {
+                    let approved = try await approver.approvePendingKeyRequests(in: data)
+                    if approved > 0 {
+                        AppLog.backend.info("Auto-approved \(approved, privacy: .public) key request(s); refetching")
+                        data = try await keyProvider.fetchDigitalKeys()
+                    }
+                } catch let error as BackendError where error.isAuthFailure {
+                    throw error
+                } catch {
+                    AppLog.backend.error("Auto-approve failed, continuing with current keys: \(String(describing: error), privacy: .public)")
                 }
             }
 
             let summary = try access.loadKeys(serverJSON: data)
+            hasLoadedKeysOnce = true
+            // A successful load clears a stale refresh error (but never an
+            // unrelated alert, e.g. a door-open failure).
+            if activeError == .keysRefreshFailed { activeError = nil }
             AppLog.backend.info("Keys loaded active=\(summary.active, privacy: .public) dropped=\(summary.dropped, privacy: .public)")
         } catch let error as BackendError where error.isAuthFailure {
             // The token is no longer valid (user not found / revoked): don't
@@ -166,7 +184,13 @@ final class HomeViewModel: ObservableObject {
         } catch {
             AppLog.backend.error("Key refresh failed: \(String(describing: error), privacy: .public)")
             analytics.log(.error(domain: "keys", reason: "\(error)"))
-            activeError = .keysRefreshFailed
+            // Don't block the user with an alert if we already have usable keys:
+            // the loaded doors keep working, and a transient refresh hiccup
+            // shouldn't nag on every pull-to-refresh. Surface the hard error only
+            // when nothing has loaded yet (a genuine empty first load).
+            if !hasLoadedKeysOnce {
+                activeError = .keysRefreshFailed
+            }
         }
     }
 
