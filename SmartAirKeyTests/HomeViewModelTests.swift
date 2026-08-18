@@ -240,6 +240,66 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(loc.requestCount, 1)
     }
 
+    /// A refresh that fails *after* keys already loaded must NOT show a blocking
+    /// alert — the loaded doors keep working; only pull-to-refresh feedback ends.
+    func testRefreshFailureAfterSuccessDoesNotAlert() async {
+        let provider = FlakyKeyProvider() // succeeds once, then fails
+        let vm = HomeViewModel(
+            access: MockAccessService(preferences: InMemoryPreferences(), analytics: SpyAnalytics()),
+            bluetoothAuth: FakeBluetoothAuth(.ready),
+            locationAuth: FakeLocationAuth(.ready),
+            analytics: SpyAnalytics(),
+            keyProvider: provider,
+            config: .demo,
+            hasValidToken: { true }
+        )
+
+        await vm.refreshKeys() // first load succeeds
+        XCTAssertNil(vm.activeError)
+
+        await vm.refreshKeys() // now fails
+        XCTAssertNil(vm.activeError, "a refresh failure must not nag once keys are loaded")
+    }
+
+    /// But a failure on the *first* load (nothing usable yet) still surfaces the
+    /// error so the user knows the screen is empty for a reason.
+    func testRefreshFailureOnFirstLoadShowsAlert() async {
+        let vm = HomeViewModel(
+            access: MockAccessService(preferences: InMemoryPreferences(), analytics: SpyAnalytics()),
+            bluetoothAuth: FakeBluetoothAuth(.ready),
+            locationAuth: FakeLocationAuth(.ready),
+            analytics: SpyAnalytics(),
+            keyProvider: FailingKeyProvider(),
+            config: .demo,
+            hasValidToken: { true }
+        )
+
+        await vm.refreshKeys()
+
+        XCTAssertEqual(vm.activeError, .keysRefreshFailed)
+    }
+
+    /// A failing auto-approve step must not fail the whole refresh: the keys that
+    /// are already usable still load, and no blocking alert appears.
+    func testAutoApproveFailureStillLoadsKeys() async {
+        let provider = ApproveFailingKeyProvider()
+        let vm = HomeViewModel(
+            access: MockAccessService(preferences: InMemoryPreferences(), analytics: SpyAnalytics()),
+            bluetoothAuth: FakeBluetoothAuth(.ready),
+            locationAuth: FakeLocationAuth(.ready),
+            analytics: SpyAnalytics(),
+            keyProvider: provider,
+            config: AppConfig(backendBaseURL: URL(string: "https://example.com"),
+                              autoApproveIncomingKeys: true),
+            hasValidToken: { true }
+        )
+
+        await vm.refreshKeys()
+
+        XCTAssertNil(vm.activeError, "an approval hiccup must not blank out the door list")
+        XCTAssertGreaterThanOrEqual(provider.fetchCount, 1)
+    }
+
     /// A backend auth failure (user not found / token invalid) signs the user
     /// out instead of leaving them stuck on the home screen.
     func testUnauthorizedResponseSignsOut() async {
@@ -302,4 +362,33 @@ final class UnauthorizedKeyProvider: KeyProviding {
 
 final class EmptyKeyProvider: KeyProviding {
     func fetchDigitalKeys() async throws -> Data { Data("[]".utf8) }
+}
+
+/// Succeeds on the first fetch, then fails — models a working session whose
+/// later refresh hits a transient backend/network error.
+final class FlakyKeyProvider: KeyProviding {
+    private var calls = 0
+    func fetchDigitalKeys() async throws -> Data {
+        calls += 1
+        if calls == 1 { return Data("[]".utf8) }
+        throw BackendError.badResponse(status: 500)
+    }
+}
+
+/// Always fails the fetch — models a genuine first-load failure.
+final class FailingKeyProvider: KeyProviding {
+    func fetchDigitalKeys() async throws -> Data { throw BackendError.badResponse(status: 500) }
+}
+
+/// Fetch works, but approving a pending key request fails — the refresh should
+/// still load the already-usable keys.
+final class ApproveFailingKeyProvider: KeyProviding, KeyRequestApproving {
+    private(set) var fetchCount = 0
+    func fetchDigitalKeys() async throws -> Data {
+        fetchCount += 1
+        return Data("[]".utf8)
+    }
+    func approvePendingKeyRequests(in profileJSON: Data) async throws -> Int {
+        throw BackendError.badResponse(status: 500)
+    }
 }
