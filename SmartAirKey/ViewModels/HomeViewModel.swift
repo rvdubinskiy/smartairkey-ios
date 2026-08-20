@@ -241,12 +241,50 @@ final class HomeViewModel: ObservableObject {
         locationAuth.requestAlwaysAuthorization()
     }
 
-    /// Surfaces the first missing-access error, if any. When access is still
-    /// undetermined there's no error yet — the system prompts are what appear.
-    private func surfaceAccessErrorIfNeeded() {
-        if let error = bluetooth.error ?? location.error {
-            activeError = error
+    /// The location problem to raise to the user (banner + alert) — but only when
+    /// iOS can no longer show a native prompt to fix it. While the native "While
+    /// Using" / "Always" prompt is still available we return nil and let the
+    /// system modal ask, right inside the app.
+    var locationSettingsError: AccessError? {
+        // Read live from the authorizer (like `allAccessGranted`) so the decision
+        // never races the published `location` mirror, which lags one async hop.
+        switch locationAuth.availability {
+        case .denied: return .locationDenied
+        case .whenInUseOnly: return locationAuth.canPromptForAlways ? nil : .locationWhenInUseOnly
+        case .ready, .unknown: return nil
         }
+    }
+
+    /// The access problem to raise as a blocking "Open Settings" alert — only
+    /// when iOS can't ask natively. Bluetooth *not-determined* is excluded (the
+    /// native permission modal fires from `requestRequiredAccess`); Bluetooth
+    /// *off* is excluded too (iOS shows its own "Turn On Bluetooth" alert and a
+    /// banner nudges). What remains genuinely needs the Settings app.
+    private var accessErrorNeedingSettings: AccessError? {
+        // Live from the authorizer (see `locationSettingsError`) so it matches
+        // `allAccessGranted` and doesn't race the published mirror.
+        switch bluetoothAuth.availability {
+        case .denied: return .bluetoothDenied
+        case .unsupported: return .bluetoothUnsupported
+        case .ready, .off, .unknown: break
+        }
+        return locationSettingsError
+    }
+
+    /// Shows the Settings alert only when a native prompt can't help; clears a
+    /// stale access alert once a prompt becomes available again (without
+    /// dismissing an unrelated alert such as a door-open failure).
+    private func updateAccessAlert() {
+        if let error = accessErrorNeedingSettings {
+            activeError = error
+        } else if activeError?.isAccessError == true {
+            activeError = nil
+        }
+    }
+
+    /// Surfaces a missing-access alert only if iOS can't prompt natively.
+    private func surfaceAccessErrorIfNeeded() {
+        updateAccessAlert()
     }
 
     var seamlessStatusText: String {
@@ -329,8 +367,10 @@ final class HomeViewModel: ObservableObject {
             // On but an access is now missing → switch off (does nothing while
             // everything is still granted or authorization is unresolved).
             enforceSeamlessAccessRequirements()
-        } else if pendingEnable, let error = bluetooth.error ?? location.error {
-            activeError = error
+        } else if pendingEnable {
+            // Waiting to enable: only nag to Settings when a native prompt can't
+            // help; otherwise stay silent so the system modal appears.
+            updateAccessAlert()
         }
     }
 
@@ -342,10 +382,14 @@ final class HomeViewModel: ObservableObject {
     /// transient state.
     private func enforceSeamlessAccessRequirements() {
         guard isSeamlessOn else { return }
-        guard let error = bluetooth.error ?? location.error else { return }
+        // Live from the authorizers so the on-appear check doesn't race the
+        // published mirrors.
+        guard bluetoothAuth.availability.error != nil || locationAuth.availability.error != nil else { return }
         AppLog.access.info("Access lost while seamless was on — disabling")
         applySeamless(false)
-        activeError = error
+        // Show the Settings alert only if iOS can't reprompt; otherwise the next
+        // enable attempt will trigger the native prompt.
+        updateAccessAlert()
     }
 
     // MARK: Error actions (UI req. 4)

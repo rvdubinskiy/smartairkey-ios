@@ -85,7 +85,9 @@ struct HomeView: View {
     // seamless access working with the app closed.
     @ViewBuilder
     private var locationBanner: some View {
-        if viewModel.bluetooth.error == nil, let error = viewModel.location.error {
+        // Only when iOS can't prompt natively (denied, or "While Using" after the
+        // one-time upgrade prompt) — otherwise the system modal does the asking.
+        if viewModel.bluetooth.error == nil, let error = viewModel.locationSettingsError {
             banner(for: error)
         }
     }

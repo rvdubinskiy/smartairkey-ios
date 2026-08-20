@@ -216,6 +216,56 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertTrue(access.isSeamlessAccessEnabled)
     }
 
+    // MARK: Native prompts vs. Settings fallback
+
+    /// Fresh install (all undetermined): enabling fires the native prompts and
+    /// shows NO Settings alert — the system modals ask in-app.
+    func testNoSettingsAlertWhenUndetermined() {
+        let (vm, bt, loc, _) = makeViewModel(bluetooth: .unknown, location: .unknown)
+        bt.canPromptForAuthorization = true
+        loc.canPromptForAlways = true
+
+        vm.setSeamless(true)
+
+        XCTAssertNil(vm.activeError, "no Settings alert while native prompts can appear")
+        XCTAssertGreaterThanOrEqual(bt.requestCount, 1)
+        XCTAssertGreaterThanOrEqual(loc.requestCount, 1)
+    }
+
+    /// Granted "While Using" but the native "Always" upgrade prompt is still
+    /// available → no Settings alert; the native prompt does the asking.
+    func testNoSettingsAlertWhileAlwaysPromptAvailable() {
+        let (vm, _, loc, _) = makeViewModel(bluetooth: .ready, location: .whenInUseOnly)
+        loc.canPromptForAlways = true
+
+        vm.setSeamless(true)
+
+        XCTAssertNil(vm.activeError, "let the native Always prompt appear, not a Settings alert")
+        XCTAssertNil(vm.locationSettingsError)
+        XCTAssertGreaterThanOrEqual(loc.requestCount, 1)
+    }
+
+    /// Once the native "Always" prompt is exhausted (user chose "Keep While
+    /// Using"), we DO fall back to the Settings alert.
+    func testSettingsAlertWhenAlwaysPromptExhausted() {
+        let (vm, _, loc, _) = makeViewModel(bluetooth: .ready, location: .whenInUseOnly)
+        loc.canPromptForAlways = false
+
+        vm.setSeamless(true)
+
+        XCTAssertEqual(vm.activeError, .locationWhenInUseOnly)
+        XCTAssertEqual(vm.locationSettingsError, .locationWhenInUseOnly)
+    }
+
+    /// Denied Bluetooth can't be reprompted by iOS → Settings alert.
+    func testSettingsAlertWhenBluetoothDenied() {
+        let (vm, _, _, _) = makeViewModel(bluetooth: .denied, location: .ready)
+
+        vm.setSeamless(true)
+
+        XCTAssertEqual(vm.activeError, .bluetoothDenied)
+    }
+
     /// Turning it off is always allowed and clears any pending intent.
     func testDisableAlwaysWorks() {
         let prefs = InMemoryPreferences()
@@ -327,6 +377,7 @@ final class HomeViewModelTests: XCTestCase {
 final class FakeBluetoothAuth: BluetoothAuthorizing {
     private let subject: CurrentValueSubject<BluetoothAvailability, Never>
     private(set) var requestCount = 0
+    var canPromptForAuthorization = false
 
     init(_ initial: BluetoothAvailability) {
         subject = CurrentValueSubject(initial)
@@ -343,6 +394,7 @@ final class FakeBluetoothAuth: BluetoothAuthorizing {
 final class FakeLocationAuth: LocationAuthorizing {
     private let subject: CurrentValueSubject<LocationAvailability, Never>
     private(set) var requestCount = 0
+    var canPromptForAlways = false
 
     init(_ initial: LocationAvailability) {
         subject = CurrentValueSubject(initial)
