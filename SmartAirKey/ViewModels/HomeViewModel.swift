@@ -246,7 +246,9 @@ final class HomeViewModel: ObservableObject {
     /// Using" / "Always" prompt is still available we return nil and let the
     /// system modal ask, right inside the app.
     var locationSettingsError: AccessError? {
-        switch location {
+        // Read live from the authorizer (like `allAccessGranted`) so the decision
+        // never races the published `location` mirror, which lags one async hop.
+        switch locationAuth.availability {
         case .denied: return .locationDenied
         case .whenInUseOnly: return locationAuth.canPromptForAlways ? nil : .locationWhenInUseOnly
         case .ready, .unknown: return nil
@@ -259,7 +261,9 @@ final class HomeViewModel: ObservableObject {
     /// *off* is excluded too (iOS shows its own "Turn On Bluetooth" alert and a
     /// banner nudges). What remains genuinely needs the Settings app.
     private var accessErrorNeedingSettings: AccessError? {
-        switch bluetooth {
+        // Live from the authorizer (see `locationSettingsError`) so it matches
+        // `allAccessGranted` and doesn't race the published mirror.
+        switch bluetoothAuth.availability {
         case .denied: return .bluetoothDenied
         case .unsupported: return .bluetoothUnsupported
         case .ready, .off, .unknown: break
@@ -378,7 +382,9 @@ final class HomeViewModel: ObservableObject {
     /// transient state.
     private func enforceSeamlessAccessRequirements() {
         guard isSeamlessOn else { return }
-        guard bluetooth.error != nil || location.error != nil else { return }
+        // Live from the authorizers so the on-appear check doesn't race the
+        // published mirrors.
+        guard bluetoothAuth.availability.error != nil || locationAuth.availability.error != nil else { return }
         AppLog.access.info("Access lost while seamless was on — disabling")
         applySeamless(false)
         // Show the Settings alert only if iOS can't reprompt; otherwise the next
