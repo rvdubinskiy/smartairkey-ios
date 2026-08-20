@@ -34,6 +34,12 @@ enum LocationAvailability: Equatable {
 protocol LocationAuthorizing: AnyObject {
     var availability: LocationAvailability { get }
     var availabilityPublisher: AnyPublisher<LocationAvailability, Never> { get }
+    /// Whether iOS can still show a *native* prompt to reach "Always" — either
+    /// the first-time "While Using" prompt (status not determined) or the
+    /// one-time "Change to Always Allow" upgrade prompt (status "While Using",
+    /// not yet asked). When false, the only route to "Always" is the Settings
+    /// app, so that's when we fall back to a Settings alert.
+    var canPromptForAlways: Bool { get }
     func requestAlwaysAuthorization()
 }
 
@@ -119,6 +125,14 @@ final class LocationAuthorization: NSObject, ObservableObject {
 extension LocationAuthorization: LocationAuthorizing {
     var availabilityPublisher: AnyPublisher<LocationAvailability, Never> {
         $availability.eraseToAnyPublisher()
+    }
+
+    var canPromptForAlways: Bool {
+        switch manager.authorizationStatus {
+        case .notDetermined: return true
+        case .authorizedWhenInUse: return !didRequestAlways
+        default: return false
+        }
     }
 }
 

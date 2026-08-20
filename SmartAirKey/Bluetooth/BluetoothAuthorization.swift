@@ -32,6 +32,10 @@ enum BluetoothAvailability: Equatable {
 protocol BluetoothAuthorizing: AnyObject {
     var availability: BluetoothAvailability { get }
     var availabilityPublisher: AnyPublisher<BluetoothAvailability, Never> { get }
+    /// Whether iOS can still show the *native* Bluetooth permission prompt
+    /// (status not determined). Once the user has denied it, iOS won't ask
+    /// again and only Settings can re-enable it.
+    var canPromptForAuthorization: Bool { get }
     func requestAuthorization()
 }
 
@@ -65,6 +69,10 @@ final class BluetoothAuthorization: NSObject, ObservableObject {
 extension BluetoothAuthorization: BluetoothAuthorizing {
     var availabilityPublisher: AnyPublisher<BluetoothAvailability, Never> {
         $availability.eraseToAnyPublisher()
+    }
+
+    var canPromptForAuthorization: Bool {
+        CBCentralManager.authorization == .notDetermined
     }
 }
 

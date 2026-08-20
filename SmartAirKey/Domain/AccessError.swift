@@ -69,6 +69,19 @@ enum AccessError: Identifiable, Equatable {
 
     /// Short analytics reason string.
     var analyticsReason: String { id }
+
+    /// Whether this is a Bluetooth/location access error (as opposed to a door
+    /// open / keys / generic error). Used to clear a stale access alert without
+    /// dismissing an unrelated one.
+    var isAccessError: Bool {
+        switch self {
+        case .bluetoothOff, .bluetoothDenied, .bluetoothUnsupported,
+             .locationDenied, .locationWhenInUseOnly:
+            return true
+        case .openFailed, .noAccess, .keysRefreshFailed, .generic:
+            return false
+        }
+    }
 }
 
 /// The one action a user can take to resolve an error.
