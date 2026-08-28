@@ -23,11 +23,22 @@ struct HomeTabBar: View {
         .padding(.horizontal, 40)
         .padding(.top, 10)
         .padding(.bottom, 6)
-        .background(
+        .background { barBackground }
+    }
+
+    /// Liquid Glass bar on iOS 26+, a flat material with a hairline shadow below.
+    @ViewBuilder
+    private var barBackground: some View {
+        if #available(iOS 26.0, *) {
+            Rectangle()
+                .fill(.clear)
+                .glassEffect(.regular, in: Rectangle())
+                .ignoresSafeArea(edges: .bottom)
+        } else {
             Color(.secondarySystemGroupedBackground)
                 .ignoresSafeArea(edges: .bottom)
                 .shadow(color: .black.opacity(0.06), radius: 8, y: -2)
-        )
+        }
     }
 
     private func item(icon: String, title: String, selected: Bool) -> some View {

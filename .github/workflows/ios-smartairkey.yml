@@ -30,7 +30,9 @@ concurrency:
 jobs:
   build-test:
     name: Build & Test
-    runs-on: macos-14
+    # macos-15 ships Xcode 26 / the iOS 26 SDK, needed to compile the Liquid
+    # Glass APIs (guarded at runtime with #available for our iOS 16 minimum).
+    runs-on: macos-15
     timeout-minutes: 30
 
     steps:
