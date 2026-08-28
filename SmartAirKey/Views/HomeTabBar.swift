@@ -21,23 +21,29 @@ struct HomeTabBar: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 40)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
         .background { barBackground }
     }
 
-    /// Liquid Glass bar on iOS 26+, a flat material with a hairline shadow below.
+    /// The bar is a top-rounded Liquid Glass sheet on iOS 26+ that bleeds into the
+    /// home-indicator area; below iOS 26 it's a flat material with a hairline
+    /// shadow. Same shape either way so layout is identical.
+    private var barShape: some Shape {
+        UnevenRoundedRectangle(topLeadingRadius: 22, topTrailingRadius: 22, style: .continuous)
+    }
+
     @ViewBuilder
     private var barBackground: some View {
         if #available(iOS 26.0, *) {
-            Rectangle()
-                .fill(.clear)
-                .glassEffect(.regular, in: Rectangle())
+            Color.clear
+                .glassEffect(.regular, in: barShape)
                 .ignoresSafeArea(edges: .bottom)
         } else {
-            Color(.secondarySystemGroupedBackground)
+            barShape
+                .fill(Color(.secondarySystemGroupedBackground))
+                .shadow(color: .black.opacity(0.08), radius: 10, y: -2)
                 .ignoresSafeArea(edges: .bottom)
-                .shadow(color: .black.opacity(0.06), radius: 8, y: -2)
         }
     }
 
