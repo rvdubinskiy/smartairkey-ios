@@ -53,7 +53,7 @@ struct SeamlessToggleCard: View {
             }
             .buttonStyle(.plain)
         }
-        .card()
+        .glassCard()
         .accessibilityElement(children: .contain)
     }
 

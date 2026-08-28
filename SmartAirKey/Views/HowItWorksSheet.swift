@@ -49,7 +49,7 @@ struct HowItWorksSheet: View {
                 row(item)
             }
         }
-        .card()
+        .glassCard()
     }
 
     private func row(_ item: HomeViewModel.PermissionItem) -> some View {
