@@ -27,16 +27,34 @@
 
 // Home — seamless access
 "home.title" = "Access";
-"seamless.title" = "Seamless Access";
-"seamless.subtitle.on" = "Doors open on their own as you walk up.";
-"seamless.subtitle.off" = "Open doors manually with the Open button.";
+"home.address.placeholder" = "My home";
+"seamless.title" = "Keyless Access";
+"seamless.subtitle.on" = "Doors open automatically when you're nearby.";
+"seamless.subtitle.off" = "Turn on so doors open automatically, even with your phone in your bag.";
 "seamless.state.on" = "On";
 "seamless.state.off" = "Off";
 "seamless.state.turning_on" = "Turning on…";
 "seamless.state.turning_off" = "Turning off…";
 "seamless.state.needs_access" = "Access needed";
 "seamless.subtitle.needs_access" = "To turn this on, grant Bluetooth and “Always” location access.";
+"seamless.how_it_works" = "How does it work?";
 "seamless.accessibility.hint" = "Double tap to turn automatic door opening near you on or off.";
+
+// Home — bottom tab bar (visual shell)
+"tab.home" = "Home";
+"tab.house" = "Building";
+"tab.profile" = "Profile";
+
+// How keyless access works — sheet + permission checklist
+"howitworks.title" = "How keyless access works";
+"howitworks.subtitle" = "These permissions let doors open automatically. You can change them anytime.";
+"permissions.item.location.title" = "Location";
+"permissions.item.location.detail" = "Choose “While Using”, then “Always”. This lets doors open with the app closed. Your location isn't tracked.";
+"permissions.item.bt_scan.title" = "Bluetooth scanning permission";
+"permissions.item.bt_scan.detail" = "The app uses Bluetooth to find doors nearby.";
+"permissions.item.bt_power.title" = "Bluetooth on, new connections allowed";
+"permissions.item.bt_power.detail" = "Needed to open doors.";
+"common.to_settings" = "Settings";
 
 // Permissions — why access is needed
 "permissions.explain.title" = "Why these permissions";

@@ -5,55 +5,37 @@ struct HomeView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @StateObject var viewModel: HomeViewModel
     @State private var confirmSignOut = false
-    @State private var doorsExpanded = true
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            HomeHeaderView()
+
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 16) {
                     SeamlessToggleCard(
                         isOn: Binding(
                             get: { viewModel.isSeamlessOn },
                             set: { viewModel.setSeamless($0) }
                         ),
-                        statusText: viewModel.seamlessStatusText,
                         subtitle: viewModel.seamlessSubtitle,
-                        isBusy: viewModel.isSeamlessBusy
+                        isBusy: viewModel.isSeamlessBusy,
+                        onHowItWorks: { viewModel.showHowItWorks() }
                     )
-
-                    if viewModel.isSeamlessOn || viewModel.pendingEnable {
-                        PermissionsExplanationCard()
-                    }
-
-                    bluetoothBanner
-
-                    locationBanner
-
-                    doorsSection
                 }
                 .padding(20)
             }
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .navigationTitle(L10n.string("home.title"))
-            .refreshable { await viewModel.refreshKeys() }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        confirmSignOut = true
-                    } label: {
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
-                    }
-                    .accessibilityLabel(L10n.string("auth.sign_out"))
-                }
-            }
+
+            HomeTabBar(onProfile: { confirmSignOut = true })
         }
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .onAppear { viewModel.onAppear() }
         .overlay { successOverlay }
-        // Animate only when the set of doors changes (added/removed/reordered),
-        // not on every status tick — re-animating 20+ cards on each SDK poll
-        // was a major source of jank.
-        .animation(.default, value: viewModel.doors.map(\.id))
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.successDoorName)
+        .sheet(isPresented: $viewModel.showsHowItWorks) {
+            HowItWorksSheet(viewModel: viewModel)
+        }
+        // The access modal is now the sheet's checklist; this alert remains only
+        // for non-permission errors (e.g. a failed first key load).
         .accessErrorAlert($viewModel.activeError) { error, action in
             viewModel.perform(action, for: error)
         }
@@ -69,98 +51,6 @@ struct HomeView: View {
         } message: {
             Text(L10n.string("auth.sign_out.confirm.message"))
         }
-    }
-
-    // MARK: Sections
-
-    @ViewBuilder
-    private var bluetoothBanner: some View {
-        if let error = viewModel.bluetooth.error {
-            banner(for: error)
-        }
-    }
-
-    // Only surface the location banner once Bluetooth is fine, so the user sees
-    // one clear next step at a time (req. UI 4). Location "Always" is what keeps
-    // seamless access working with the app closed.
-    @ViewBuilder
-    private var locationBanner: some View {
-        // Only when iOS can't prompt natively (denied, or "While Using" after the
-        // one-time upgrade prompt) — otherwise the system modal does the asking.
-        if viewModel.bluetooth.error == nil, let error = viewModel.locationSettingsError {
-            banner(for: error)
-        }
-    }
-
-    private func banner(for error: AccessError) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(error.title).font(.subheadline.weight(.semibold))
-                Text(error.message).font(.footnote).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
-            Button(error.primaryAction.title) { viewModel.perform(error.primaryAction, for: error) }
-                .font(.subheadline.weight(.semibold))
-                .buttonStyle(.bordered)
-        }
-        .card()
-        .accessibilityElement(children: .combine)
-    }
-
-    // Collapsible "Intercoms near you" list so it can be tucked away — the list
-    // can grow long with many nearby intercoms.
-    private var doorsSection: some View {
-        DisclosureGroup(isExpanded: $doorsExpanded) {
-            VStack(alignment: .leading, spacing: 12) {
-                if viewModel.doors.isEmpty {
-                    emptyState
-                } else {
-                    ForEach(viewModel.doors) { door in
-                        DoorRowView(door: door) { viewModel.open(door) }
-                    }
-                }
-            }
-            .padding(.top, 12)
-        } label: {
-            HStack(spacing: 8) {
-                Text(L10n.string("doors.section"))
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                if !viewModel.doors.isEmpty {
-                    Text("\(viewModel.doors.count)")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(Color(.tertiarySystemFill), in: Capsule())
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .accessibilityAddTraits(.isHeader)
-        }
-        .tint(.secondary)
-        .animation(.default, value: doorsExpanded)
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "door.left.hand.closed")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            Text(L10n.string("doors.empty.title")).font(.headline)
-            Text(L10n.string("doors.empty.message"))
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 32)
-        .card()
     }
 
     @ViewBuilder
