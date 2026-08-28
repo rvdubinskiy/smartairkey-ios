@@ -79,6 +79,7 @@ jobs:
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            SWIFT_ENABLE_EXPLICIT_MODULES=NO \
             2>&1 | tee xcodebuild-test.log | xcbeautify
 
       - name: Diagnostics on failure
