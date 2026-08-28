@@ -27,16 +27,34 @@
 
 // Home — seamless access
 "home.title" = "Доступ";
-"seamless.title" = "Бесшовный доступ";
-"seamless.subtitle.on" = "Двери открываются сами, когда вы подходите.";
-"seamless.subtitle.off" = "Открывайте двери вручную кнопкой «Открыть».";
+"home.address.placeholder" = "Мой дом";
+"seamless.title" = "Бесключевой доступ";
+"seamless.subtitle.on" = "Двери открываются автоматически, когда вы рядом.";
+"seamless.subtitle.off" = "Включите, чтобы двери открывались автоматически, даже если телефон лежит в сумке";
 "seamless.state.on" = "Включено";
 "seamless.state.off" = "Выключено";
 "seamless.state.turning_on" = "Включаем…";
 "seamless.state.turning_off" = "Выключаем…";
 "seamless.state.needs_access" = "Нужен доступ";
 "seamless.subtitle.needs_access" = "Чтобы включить, выдайте доступ к Bluetooth и геопозиции «Всегда».";
+"seamless.how_it_works" = "Как это работает?";
 "seamless.accessibility.hint" = "Дважды коснитесь, чтобы включить или выключить автоматическое открытие дверей рядом с вами.";
+
+// Home — bottom tab bar (visual shell)
+"tab.home" = "Главная";
+"tab.house" = "Дом";
+"tab.profile" = "Профиль";
+
+// How keyless access works — sheet + permission checklist
+"howitworks.title" = "Как работает бесключевой доступ";
+"howitworks.subtitle" = "Разрешения нужны для автоматического открытия дверей. Их можно изменить в любой момент";
+"permissions.item.location.title" = "Геопозиция";
+"permissions.item.location.detail" = "Выберите «При использовании», затем «Всегда». Это позволит двери открываться при закрытом приложении. Местоположение не отслеживается";
+"permissions.item.bt_scan.title" = "Разрешение на поиск Bluetooth устройств";
+"permissions.item.bt_scan.detail" = "Приложение использует включённый Bluetooth и ищет двери поблизости";
+"permissions.item.bt_power.title" = "Включённый Bluetooth и разрешены новые подключения";
+"permissions.item.bt_power.detail" = "Нужен для открытия дверей";
+"common.to_settings" = "В настройки";
 
 // Permissions — why access is needed
 "permissions.explain.title" = "Зачем нужны разрешения";

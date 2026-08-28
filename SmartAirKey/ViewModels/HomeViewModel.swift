@@ -19,6 +19,12 @@ final class HomeViewModel: ObservableObject {
     @Published var activeError: AccessError?
     @Published var successDoorName: String?
 
+    /// Presents the "How keyless access works" bottom sheet (permission
+    /// explanation + live checklist). Opened when the user taps the card link or
+    /// tries to enable while access is missing; dismissed once everything is
+    /// granted.
+    @Published var showsHowItWorks = false
+
     // Bluetooth (req. 6)
     @Published private(set) var bluetooth: BluetoothAvailability = .unknown
 
@@ -214,16 +220,26 @@ final class HomeViewModel: ObservableObject {
         }
 
         guard allAccessGranted else {
-            // Can't turn it on yet — remember the intent, request what's
-            // missing, and leave the switch off until access is granted.
+            // Can't turn it on yet — remember the intent, fire the native
+            // permission prompts, and open the explanation sheet whose live
+            // checklist shows what's still missing. The switch stays off until
+            // every access is granted (then it finishes automatically).
             pendingEnable = true
             requestRequiredAccess()
-            surfaceAccessErrorIfNeeded()
+            showsHowItWorks = true
             return
         }
 
         pendingEnable = false
         applySeamless(true)
+    }
+
+    /// Opens the "How it works" sheet from the card link (informational).
+    func showHowItWorks() {
+        // Re-fire the native prompts so tapping the link can still surface a
+        // system modal when access is undetermined.
+        requestRequiredAccess()
+        showsHowItWorks = true
     }
 
     /// Actually turns seamless access on/off once the decision is made.
@@ -255,36 +271,56 @@ final class HomeViewModel: ObservableObject {
         }
     }
 
-    /// The access problem to raise as a blocking "Open Settings" alert — only
-    /// when iOS can't ask natively. Bluetooth *not-determined* is excluded (the
-    /// native permission modal fires from `requestRequiredAccess`); Bluetooth
-    /// *off* is excluded too (iOS shows its own "Turn On Bluetooth" alert and a
-    /// banner nudges). What remains genuinely needs the Settings app.
-    private var accessErrorNeedingSettings: AccessError? {
-        // Live from the authorizer (see `locationSettingsError`) so it matches
-        // `allAccessGranted` and doesn't race the published mirror.
-        switch bluetoothAuth.availability {
-        case .denied: return .bluetoothDenied
-        case .unsupported: return .bluetoothUnsupported
-        case .ready, .off, .unknown: break
-        }
-        return locationSettingsError
+    /// One row of the permission checklist shown in the "How it works" sheet.
+    struct PermissionItem: Identifiable, Equatable {
+        enum Status: Equatable { case done, pending }
+        let id: String
+        let title: String
+        let detail: String
+        let status: Status
+        /// When set, the row shows a "Settings" link (iOS can't fix it with a
+        /// native prompt) that opens the given screen.
+        let settingsError: AccessError?
     }
 
-    /// Shows the Settings alert only when a native prompt can't help; clears a
-    /// stale access alert once a prompt becomes available again (without
-    /// dismissing an unrelated alert such as a door-open failure).
-    private func updateAccessAlert() {
-        if let error = accessErrorNeedingSettings {
-            activeError = error
-        } else if activeError?.isAccessError == true {
-            activeError = nil
-        }
-    }
+    /// Live status of the three permissions the seamless flow needs, in the order
+    /// the design lists them: location "Always", the Bluetooth-scanning
+    /// permission, and Bluetooth being powered on. Derived live from the
+    /// authorizers so it never races the published mirrors.
+    var permissionChecklist: [PermissionItem] {
+        let loc = locationAuth.availability
+        let bt = bluetoothAuth.availability
 
-    /// Surfaces a missing-access alert only if iOS can't prompt natively.
-    private func surfaceAccessErrorIfNeeded() {
-        updateAccessAlert()
+        let location = PermissionItem(
+            id: "location",
+            title: L10n.string("permissions.item.location.title"),
+            detail: L10n.string("permissions.item.location.detail"),
+            status: loc == .ready ? .done : .pending,
+            settingsError: loc == .ready ? nil : locationSettingsError
+        )
+
+        // CoreBluetooth can't separate "permission granted" from "powered on"
+        // beyond its single state, so we approximate: the scanning permission is
+        // satisfied unless it was explicitly denied/unsupported; power is
+        // satisfied only when the radio is on (`.ready`).
+        let bluetoothPermission = PermissionItem(
+            id: "bt-permission",
+            title: L10n.string("permissions.item.bt_scan.title"),
+            detail: L10n.string("permissions.item.bt_scan.detail"),
+            status: (bt == .denied || bt == .unsupported || bt == .unknown) ? .pending : .done,
+            settingsError: bt == .denied ? .bluetoothDenied
+                : (bt == .unsupported ? .bluetoothUnsupported : nil)
+        )
+
+        let bluetoothPower = PermissionItem(
+            id: "bt-power",
+            title: L10n.string("permissions.item.bt_power.title"),
+            detail: L10n.string("permissions.item.bt_power.detail"),
+            status: bt == .ready ? .done : .pending,
+            settingsError: bt == .off ? .bluetoothOff : nil
+        )
+
+        return [location, bluetoothPermission, bluetoothPower]
     }
 
     var seamlessStatusText: String {
@@ -357,8 +393,9 @@ final class HomeViewModel: ObservableObject {
     /// location) while the user is trying to turn seamless access on.
     private func reactToAccessChange() {
         if pendingEnable, allAccessGranted {
+            // Everything granted — finish enabling and dismiss the sheet.
             pendingEnable = false
-            activeError = nil
+            showsHowItWorks = false
             applySeamless(true)
             return
         }
@@ -367,11 +404,9 @@ final class HomeViewModel: ObservableObject {
             // On but an access is now missing → switch off (does nothing while
             // everything is still granted or authorization is unresolved).
             enforceSeamlessAccessRequirements()
-        } else if pendingEnable {
-            // Waiting to enable: only nag to Settings when a native prompt can't
-            // help; otherwise stay silent so the system modal appears.
-            updateAccessAlert()
         }
+        // While `pendingEnable`, the "How it works" sheet is already up and its
+        // checklist reflects live state — no extra alert needed.
     }
 
     /// Seamless access requires *every* access at all times. If it's currently
@@ -387,9 +422,8 @@ final class HomeViewModel: ObservableObject {
         guard bluetoothAuth.availability.error != nil || locationAuth.availability.error != nil else { return }
         AppLog.access.info("Access lost while seamless was on — disabling")
         applySeamless(false)
-        // Show the Settings alert only if iOS can't reprompt; otherwise the next
-        // enable attempt will trigger the native prompt.
-        updateAccessAlert()
+        // Don't pop anything unprompted — the card reflects the off state and its
+        // link opens the checklist explaining what to re-grant.
     }
 
     // MARK: Error actions (UI req. 4)

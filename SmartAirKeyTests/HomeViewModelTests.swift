@@ -171,7 +171,8 @@ final class HomeViewModelTests: XCTestCase {
 
         XCTAssertFalse(vm.isSeamlessOn, "must switch off when an access is revoked")
         XCTAssertFalse(access.isSeamlessAccessEnabled)
-        XCTAssertNotNil(vm.activeError, "the user should be told what to fix")
+        // Passive loss doesn't pop anything unprompted; the checklist reflects it.
+        XCTAssertTrue(vm.permissionChecklist.contains { $0.id == "bt-permission" && $0.status == .pending })
     }
 
     /// Feature on, then location is downgraded from "Always" to "While Using" →
@@ -216,54 +217,93 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertTrue(access.isSeamlessAccessEnabled)
     }
 
-    // MARK: Native prompts vs. Settings fallback
+    // MARK: "How it works" sheet + permission checklist
+
+    /// Trying to enable while access is missing opens the explanation sheet
+    /// (whose checklist shows what's missing) instead of a blocking alert.
+    func testEnablingWhileBlockedOpensSheet() {
+        let (vm, _, _, _) = makeViewModel(bluetooth: .ready, location: .whenInUseOnly)
+
+        vm.setSeamless(true)
+
+        XCTAssertTrue(vm.showsHowItWorks, "the how-it-works sheet should open")
+        XCTAssertNil(vm.activeError, "no blocking access modal — the sheet is the surface")
+    }
 
     /// Fresh install (all undetermined): enabling fires the native prompts and
-    /// shows NO Settings alert — the system modals ask in-app.
-    func testNoSettingsAlertWhenUndetermined() {
+    /// shows NO Settings link on the location row — the system modals ask in-app.
+    func testChecklistNoSettingsLinkWhenUndetermined() {
         let (vm, bt, loc, _) = makeViewModel(bluetooth: .unknown, location: .unknown)
         bt.canPromptForAuthorization = true
         loc.canPromptForAlways = true
 
         vm.setSeamless(true)
 
-        XCTAssertNil(vm.activeError, "no Settings alert while native prompts can appear")
+        XCTAssertNil(vm.activeError)
+        XCTAssertNil(locationItem(vm).settingsError, "native prompt pending → no Settings link")
         XCTAssertGreaterThanOrEqual(bt.requestCount, 1)
         XCTAssertGreaterThanOrEqual(loc.requestCount, 1)
     }
 
     /// Granted "While Using" but the native "Always" upgrade prompt is still
-    /// available → no Settings alert; the native prompt does the asking.
-    func testNoSettingsAlertWhileAlwaysPromptAvailable() {
+    /// available → no Settings link; the native prompt does the asking.
+    func testChecklistNoSettingsLinkWhileAlwaysPromptAvailable() {
         let (vm, _, loc, _) = makeViewModel(bluetooth: .ready, location: .whenInUseOnly)
         loc.canPromptForAlways = true
 
         vm.setSeamless(true)
 
-        XCTAssertNil(vm.activeError, "let the native Always prompt appear, not a Settings alert")
+        XCTAssertEqual(locationItem(vm).status, .pending)
+        XCTAssertNil(locationItem(vm).settingsError, "let the native Always prompt appear")
         XCTAssertNil(vm.locationSettingsError)
-        XCTAssertGreaterThanOrEqual(loc.requestCount, 1)
     }
 
     /// Once the native "Always" prompt is exhausted (user chose "Keep While
-    /// Using"), we DO fall back to the Settings alert.
-    func testSettingsAlertWhenAlwaysPromptExhausted() {
+    /// Using"), the location row shows a Settings link.
+    func testChecklistSettingsLinkWhenAlwaysPromptExhausted() {
         let (vm, _, loc, _) = makeViewModel(bluetooth: .ready, location: .whenInUseOnly)
         loc.canPromptForAlways = false
 
         vm.setSeamless(true)
 
-        XCTAssertEqual(vm.activeError, .locationWhenInUseOnly)
+        XCTAssertEqual(locationItem(vm).settingsError, .locationWhenInUseOnly)
         XCTAssertEqual(vm.locationSettingsError, .locationWhenInUseOnly)
     }
 
-    /// Denied Bluetooth can't be reprompted by iOS → Settings alert.
-    func testSettingsAlertWhenBluetoothDenied() {
+    /// Denied Bluetooth can't be reprompted by iOS → the scanning row shows a
+    /// Settings link.
+    func testChecklistSettingsLinkWhenBluetoothDenied() {
         let (vm, _, _, _) = makeViewModel(bluetooth: .denied, location: .ready)
 
         vm.setSeamless(true)
 
-        XCTAssertEqual(vm.activeError, .bluetoothDenied)
+        let scan = vm.permissionChecklist.first { $0.id == "bt-permission" }
+        XCTAssertEqual(scan?.status, .pending)
+        XCTAssertEqual(scan?.settingsError, .bluetoothDenied)
+    }
+
+    /// All three checklist items are done once every access is "Always"/ready.
+    func testChecklistAllDoneWhenGranted() {
+        let (vm, _, _, _) = makeViewModel(bluetooth: .ready, location: .ready)
+        XCTAssertTrue(vm.permissionChecklist.allSatisfy { $0.status == .done })
+    }
+
+    /// Completing a pending enable dismisses the sheet.
+    func testSheetDismissesWhenAllAccessGranted() {
+        let (vm, bt, loc, _) = makeViewModel(bluetooth: .unknown, location: .unknown)
+        vm.setSeamless(true)
+        XCTAssertTrue(vm.showsHowItWorks)
+
+        bt.set(.ready)
+        loc.set(.ready)
+        waitForMainQueue()
+
+        XCTAssertFalse(vm.showsHowItWorks, "sheet closes once everything is granted")
+        XCTAssertTrue(vm.isSeamlessOn)
+    }
+
+    private func locationItem(_ vm: HomeViewModel) -> HomeViewModel.PermissionItem {
+        vm.permissionChecklist.first { $0.id == "location" }!
     }
 
     /// Turning it off is always allowed and clears any pending intent.
