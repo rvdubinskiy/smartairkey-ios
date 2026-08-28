@@ -1,43 +1,69 @@
 import SwiftUI
 
-/// Bottom tab bar — a visual shell matching the design (Home / Building /
-/// Profile). Only "Home" is active; the other tabs aren't wired to real screens
-/// yet. "Profile" is the one functional affordance: it surfaces sign-out, which
-/// otherwise has no home now that the door list (and its toolbar) is gone.
+/// Which tab of the home screen is showing. "Profile" isn't a tab view — it's an
+/// action (sign-out) — so it's not part of this enum.
+enum HomeTab: Hashable {
+    case home
+    case house
+}
+
+/// Bottom tab bar. "Home" and "Building" switch the content above; "Profile"
+/// surfaces sign-out. On iOS 26+ the bar is a top-rounded Liquid Glass sheet;
+/// below iOS 26 it's a flat material with a hairline shadow.
 struct HomeTabBar: View {
 
-    /// Called when the user taps "Profile" (the only wired tab for now).
+    @Binding var selected: HomeTab
+    /// Called when the user taps "Profile".
     let onProfile: () -> Void
 
     var body: some View {
         HStack(alignment: .center) {
-            item(icon: "square.stack.fill", title: L10n.string("tab.home"), selected: true)
+            Button { selected = .home } label: {
+                item(icon: "square.stack.fill", title: L10n.string("tab.home"),
+                     selected: selected == .home)
+            }
+            .buttonStyle(.plain)
+
             Spacer()
-            item(icon: "house", title: L10n.string("tab.house"), selected: false)
+
+            Button { selected = .house } label: {
+                item(icon: selected == .house ? "house.fill" : "house",
+                     title: L10n.string("tab.house"), selected: selected == .house)
+            }
+            .buttonStyle(.plain)
+
             Spacer()
+
             Button(action: onProfile) {
-                item(icon: "person.crop.circle", title: L10n.string("tab.profile"), selected: false)
+                item(icon: "person.crop.circle", title: L10n.string("tab.profile"),
+                     selected: false)
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 40)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
         .background { barBackground }
     }
 
-    /// Liquid Glass bar on iOS 26+, a flat material with a hairline shadow below.
+    /// The bar is a top-rounded Liquid Glass sheet on iOS 26+ that bleeds into the
+    /// home-indicator area; below iOS 26 it's a flat material with a hairline
+    /// shadow. Same shape either way so layout is identical.
+    private var barShape: some Shape {
+        UnevenRoundedRectangle(topLeadingRadius: 22, topTrailingRadius: 22, style: .continuous)
+    }
+
     @ViewBuilder
     private var barBackground: some View {
         if #available(iOS 26.0, *) {
-            Rectangle()
-                .fill(.clear)
-                .glassEffect(.regular, in: Rectangle())
+            Color.clear
+                .glassEffect(.regular, in: barShape)
                 .ignoresSafeArea(edges: .bottom)
         } else {
-            Color(.secondarySystemGroupedBackground)
+            barShape
+                .fill(Color(.secondarySystemGroupedBackground))
+                .shadow(color: .black.opacity(0.08), radius: 10, y: -2)
                 .ignoresSafeArea(edges: .bottom)
-                .shadow(color: .black.opacity(0.06), radius: 8, y: -2)
         }
     }
 
@@ -50,12 +76,13 @@ struct HomeTabBar: View {
         }
         .foregroundStyle(selected ? Color.accentColor : Color.secondary)
         .frame(minWidth: 64)
+        .contentShape(Rectangle())
     }
 }
 
 #Preview {
     VStack {
         Spacer()
-        HomeTabBar(onProfile: {})
+        HomeTabBar(selected: .constant(.home), onProfile: {})
     }
 }
